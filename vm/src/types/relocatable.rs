@@ -410,6 +410,7 @@ mod tests {
     use super::*;
     use crate::{felt_hex, felt_str};
     use crate::{relocatable, utils::test_utils::mayberelocatable};
+    use num_bigint::{BigInt, BigUint};
 
     use proptest::prelude::*;
 
@@ -441,6 +442,45 @@ mod tests {
                 .map(|offset| (0, offset).into());
             prop_assert_eq!((rel + big_zero).ok(), sum_zero);
         }
+    }
+
+    #[test]
+    // Verifies primitive integers convert into `MaybeRelocatable::Int` via the macro-generated impls.
+    fn maybe_relocatable_from_primitive_via_macro() {
+        let value = MaybeRelocatable::from(42_u8);
+        assert_eq!(value, MaybeRelocatable::Int(Felt252::from(42_u8)));
+    }
+
+    #[test]
+    // Verifies owned `BigUint`/`BigInt` values convert into `MaybeRelocatable::Int`.
+    fn maybe_relocatable_from_owned_bigints_via_macro() {
+        let big_uint = BigUint::from(123_u32);
+        let big_int = BigInt::from(456_i32);
+
+        assert_eq!(
+            MaybeRelocatable::from(big_uint),
+            MaybeRelocatable::Int(Felt252::from(123_u32))
+        );
+        assert_eq!(
+            MaybeRelocatable::from(big_int),
+            MaybeRelocatable::Int(Felt252::from(456_i32))
+        );
+    }
+
+    #[test]
+    // Verifies referenced `&BigUint`/`&BigInt` values convert into `MaybeRelocatable::Int`.
+    fn maybe_relocatable_from_referenced_bigints_via_macro() {
+        let big_uint = BigUint::from(789_u32);
+        let big_int = BigInt::from(321_i32);
+
+        assert_eq!(
+            MaybeRelocatable::from(&big_uint),
+            MaybeRelocatable::Int(Felt252::from(789_u32))
+        );
+        assert_eq!(
+            MaybeRelocatable::from(&big_int),
+            MaybeRelocatable::Int(Felt252::from(321_i32))
+        );
     }
 
     #[test]

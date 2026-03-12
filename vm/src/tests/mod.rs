@@ -17,10 +17,6 @@ use crate::{
 };
 #[cfg(feature = "cairo-1-hints")]
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-#[cfg(feature = "cairo-1-hints")]
-use num_bigint::BigUint;
-#[cfg(feature = "cairo-1-hints")]
-use num_traits::Num;
 
 use crate::{
     cairo_run::{cairo_run, CairoRunConfig},
@@ -173,12 +169,8 @@ fn run_cairo_1_entrypoint(
             .data
             .len())
     .unwrap();
-    let program_extra_data: Vec<MaybeRelocatable> = vec![
-        BigUint::from_str_radix("208B7FFF7FFF7FFE", 16)
-            .unwrap()
-            .into(),
-        builtin_costs_ptr.into(),
-    ];
+    let program_extra_data: Vec<MaybeRelocatable> =
+        vec![0x208B7FFF7FFF7FFE_u64.into(), builtin_costs_ptr.into()];
     function_runner
         .runner
         .vm
@@ -310,12 +302,8 @@ fn run_cairo_1_entrypoint_with_run_resources(
             .data
             .len())
     .unwrap();
-    let program_extra_data: Vec<MaybeRelocatable> = vec![
-        BigUint::from_str_radix("208B7FFF7FFF7FFE", 16)
-            .unwrap()
-            .into(),
-        builtin_costs_ptr.into(),
-    ];
+    let program_extra_data: Vec<MaybeRelocatable> =
+        vec![0x208B7FFF7FFF7FFE_u64.into(), builtin_costs_ptr.into()];
     function_runner
         .runner
         .vm
