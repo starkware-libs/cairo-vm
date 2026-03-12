@@ -21,7 +21,11 @@ cairo-0-secp-hints = []
 cairo-0-data-availability-hints = []
 
 # Note that these features are not retro-compatible with the cairo Python VM.
-test_utils = ["dep:arbitrary", "starknet-types-core/arbitrary", "starknet-types-core/std"] # This feature will reference every test-oriented feature
+test_utils = [
+    "dep:arbitrary",
+    "starknet-types-core/arbitrary",
+    "starknet-types-core/std",
+] # This feature will reference every test-oriented feature
 # Allows extending the set of hints for the current vm run from within a hint.
 # For a usage example checkout vm/src/tests/run_deprecated_contract_class_simplified.rs
 extensive_hints = []
@@ -45,7 +49,12 @@ generic-array = { workspace = true }
 keccak = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
-starknet-types-core = { version = "0.2.4", default-features = false, features = ["serde", "curve", "num-traits", "hash"] }
+starknet-types-core = { version = "0.2.4", default-features = false, features = [
+    "serde",
+    "curve",
+    "num-traits",
+    "hash",
+] }
 rust_decimal = { version = "1.35.0", default-features = false }
 
 num-prime = { version = "0.4.3", features = ["big-int"] }
@@ -61,7 +70,7 @@ ark-std = { workspace = true, optional = true }
 arbitrary = { workspace = true, features = ["derive"], optional = true }
 
 # Used to derive clap traits for CLIs
-clap = { version = "4.3.10", features = ["derive"], optional = true}
+clap = { version = "4.3.10", features = ["derive"], optional = true }
 
 [dev-dependencies]
 assert_matches = "1.5.0"
@@ -80,6 +89,10 @@ harness = false
 path = "../bench/criterion_benchmark.rs"
 name = "criterion_benchmark"
 harness = false
+
+[[test]]
+name = "math_test"
+path = "../tests_cairo/mod.rs"
 
 [[example]]
 name = "custom_hint"
