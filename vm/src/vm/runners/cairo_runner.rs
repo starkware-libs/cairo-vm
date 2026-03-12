@@ -4953,6 +4953,34 @@ mod tests {
         assert_eq!(expected, value.into())
     }
 
+    #[test]
+    // Verifies converting `Vec<T>` into `CairoArg` produces the expected array argument.
+    fn cairo_arg_from_vec_of_ints() {
+        let expected = CairoArg::Array(vec![
+            MaybeRelocatable::from(Felt252::from(1)),
+            MaybeRelocatable::from(Felt252::from(2)),
+            MaybeRelocatable::from(Felt252::from(3)),
+        ]);
+        let value = vec![1_i32, 2_i32, 3_i32];
+        assert_eq!(expected, CairoArg::from(value))
+    }
+
+    #[test]
+    // Verifies `cairo_args!` builds a `Vec<CairoArg>` from mixed argument types.
+    fn cairo_args_macro_builds_vec_of_cairo_args() {
+        let expected = vec![
+            CairoArg::Single(MaybeRelocatable::from(Felt252::from(7))),
+            CairoArg::Single(MaybeRelocatable::from((1, 3))),
+            CairoArg::Array(vec![
+                MaybeRelocatable::from(Felt252::from(9)),
+                MaybeRelocatable::from(Felt252::from(10)),
+            ]),
+        ];
+
+        let args = crate::cairo_args![7_i32, (1, 3), vec![9_i32, 10_i32],];
+        assert_eq!(args, expected);
+    }
+
     fn setup_execution_resources() -> (ExecutionResources, ExecutionResources) {
         let mut builtin_instance_counter: BTreeMap<BuiltinName, usize> = BTreeMap::new();
         builtin_instance_counter.insert(BuiltinName::output, 8);

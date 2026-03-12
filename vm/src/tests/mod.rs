@@ -17,10 +17,6 @@ use crate::{
 };
 #[cfg(feature = "cairo-1-hints")]
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-#[cfg(feature = "cairo-1-hints")]
-use num_bigint::BigUint;
-#[cfg(feature = "cairo-1-hints")]
-use num_traits::Num;
 
 use crate::{
     cairo_run::{cairo_run, CairoRunConfig},
