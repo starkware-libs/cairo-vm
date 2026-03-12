@@ -9,6 +9,7 @@ use crate::hint_processor::hint_processor_definition::HintProcessor;
 use crate::types::builtin_name::BuiltinName;
 use crate::types::errors::program_errors::ProgramError;
 use crate::types::instance_definitions::mod_instance_def::ModInstanceDef;
+use crate::types::layout::CairoLayoutParams;
 use crate::types::layout_name::LayoutName;
 use crate::types::program::Program;
 use crate::types::relocatable::MaybeRelocatable;
@@ -33,17 +34,22 @@ pub enum EntryPoint<'a> {
 
 /// A runner for executing individual Cairo functions.
 /// Used for testing purposes only.
-pub struct CairoFunctionRunner<'a> {
-    /// The compiled Cairo program to execute.
-    pub program: &'a Program,
+pub struct CairoFunctionRunner {
     /// The Cairo runner instance that manages VM execution.
     pub runner: CairoRunner,
 }
 
-impl<'a> CairoFunctionRunner<'a> {
+impl CairoFunctionRunner {
     /// Creates a new `CairoFunctionRunner`.
     ///
-    /// Initializes the Cairo runner and preloads a fixed set of commonly used builtins.
+    /// Initializes a basic `CairoRunner` with:
+    /// - `LayoutName::plain`
+    /// - `dynamic_layout_params = None`
+    /// - `proof_mode = false`
+    /// - `trace_enabled = false`
+    /// - `disable_trace_padding = false`
+    ///
+    /// and then preloads a fixed set of commonly used builtins.
     ///
     /// # Arguments
     /// - `program`: The compiled Cairo program to execute.
@@ -52,7 +58,7 @@ impl<'a> CairoFunctionRunner<'a> {
     /// - `Ok(CairoFunctionRunner)`: On successful initialization.
     /// - `Err(CairoRunError)`: If the runner cannot be created.
     #[allow(clippy::result_large_err)]
-    pub fn new(program: &'a Program) -> std::result::Result<Self, CairoRunError> {
+    pub fn new(program: &Program) -> std::result::Result<Self, CairoRunError> {
         let mut runner = CairoRunner::new(
             program,
             LayoutName::plain,
@@ -65,7 +71,30 @@ impl<'a> CairoFunctionRunner<'a> {
         Self::initialize_all_builtins(&mut runner)?;
         runner.initialize_segments(None);
 
-        Ok(Self { program, runner })
+        Ok(Self { runner })
+    }
+    /// Creates a new `CairoFunctionRunner` with custom `CairoRunner` initialization parameters.
+    ///
+    /// Unlike [`Self::new`], this constructor does not preload builtins or initialize segments.
+    #[allow(clippy::result_large_err)]
+    pub fn new_custom(
+        program: &Program,
+        layout: LayoutName,
+        dynamic_layout_params: Option<CairoLayoutParams>,
+        proof_mode: bool,
+        trace_enabled: bool,
+        disable_trace_padding: bool,
+    ) -> std::result::Result<Self, CairoRunError> {
+        let runner = CairoRunner::new(
+            program,
+            layout,
+            dynamic_layout_params,
+            proof_mode,
+            trace_enabled,
+            disable_trace_padding,
+        )?;
+
+        Ok(Self { runner })
     }
 
     /// Initializes a fixed set of 11 builtins used by this function runner.
@@ -236,6 +265,7 @@ impl<'a> CairoFunctionRunner<'a> {
     fn get_function_pc(&self, entrypoint: &str) -> std::result::Result<usize, CairoRunError> {
         let full_name = format!("__main__.{entrypoint}");
         let identifier = self
+            .runner
             .program
             .get_identifier(&full_name)
             .ok_or_else(|| ProgramError::EntrypointNotFound(entrypoint.to_string()))?;
