@@ -59,7 +59,7 @@ static INTERESTING_FELTS: LazyLock<Vec<BigUint>> = LazyLock::new(|| {
 
 /// Creates a fresh CairoFunctionRunner from the shared PROGRAM.
 #[fixture]
-fn runner() -> CairoFunctionRunner<'static> {
+fn runner() -> CairoFunctionRunner {
     CairoFunctionRunner::new(&PROGRAM).unwrap()
 }
 
@@ -175,7 +175,7 @@ fn test_assert_not_equal(
 // Expected: Error.
 #[case::near_prime(&*CAIRO_PRIME - BigUint::one(), expect_hint_value_outside_250_bit_range)]
 fn test_assert_250_bit(
-    mut runner: CairoFunctionRunner<'static>,
+    mut runner: CairoFunctionRunner,
     #[case] value: BigUint,
     #[case] check: VmCheck<()>,
 ) {
@@ -245,7 +245,7 @@ fn test_assert_250_bit(
 // Case: idx=15
 // Expected: Success.
 #[case::idx_15(15)]
-fn test_split_felt(mut runner: CairoFunctionRunner<'static>, #[case] idx: usize) {
+fn test_split_felt(mut runner: CairoFunctionRunner, #[case] idx: usize) {
     let mask_128 = BigUint::from(2u64).pow(128) - BigUint::one();
     let value = &INTERESTING_FELTS[idx];
 
@@ -276,7 +276,7 @@ fn test_split_felt(mut runner: CairoFunctionRunner<'static>, #[case] idx: usize)
 
 #[rstest]
 fn test_assert_le_felt(
-    mut runner: CairoFunctionRunner<'static>,
+    mut runner: CairoFunctionRunner,
     #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] idx0: usize,
     #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] idx1: usize,
 ) {
@@ -309,7 +309,7 @@ fn test_assert_le_felt(
 
 #[rstest]
 fn test_assert_lt_felt(
-    mut runner: CairoFunctionRunner<'static>,
+    mut runner: CairoFunctionRunner,
     #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] idx0: usize,
     #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] idx1: usize,
 ) {
@@ -357,7 +357,7 @@ fn test_assert_lt_felt(
 // Expected: Error.
 #[case(-BigInt::from(RC_BOUND.clone()), expect_hint_value_outside_valid_range)]
 fn test_abs_value(
-    mut runner: CairoFunctionRunner<'static>,
+    mut runner: CairoFunctionRunner,
     #[case] value_case: BigInt,
     #[case] check: VmCheck<()>,
 ) {
@@ -401,7 +401,7 @@ fn test_abs_value(
 // Expected: Error.
 #[case(-BigInt::from(RC_BOUND.clone()), expect_hint_value_outside_valid_range)]
 fn test_sign(
-    mut runner: CairoFunctionRunner<'static>,
+    mut runner: CairoFunctionRunner,
     #[case] value_case: BigInt,
     #[case] check: VmCheck<()>,
 ) {
@@ -504,7 +504,7 @@ fn test_sign(
     expect_hint_out_of_valid_range
 )]
 fn test_unsigned_div_rem(
-    mut runner: CairoFunctionRunner<'static>,
+    mut runner: CairoFunctionRunner,
     #[case] q: Option<BigUint>,
     #[case] div: Option<BigUint>,
     #[case] r: Option<BigUint>,
@@ -648,7 +648,7 @@ fn test_unsigned_div_rem(
     expect_hint_out_of_valid_range
 )]
 fn test_signed_div_rem(
-    mut runner: CairoFunctionRunner<'static>,
+    mut runner: CairoFunctionRunner,
     #[case] q: Option<BigInt>,
     #[case] div: Option<BigUint>,
     #[case] r: Option<BigUint>,
@@ -775,7 +775,7 @@ fn test_signed_div_rem(
 // Expected: Error.
 #[case::value_out_of_range(0xAAA_i64, 2_i64, 16_i64, 16_i64, None, expect_split_int_not_zero)]
 fn test_split_int(
-    mut runner: CairoFunctionRunner<'static>,
+    mut runner: CairoFunctionRunner,
     #[case] value: i64,
     #[case] n: i64,
     #[case] base: i64,
@@ -867,7 +867,7 @@ fn test_split_int(
     expect_hint_value_outside_250_bit_range
 )]
 fn test_sqrt(
-    mut runner: CairoFunctionRunner<'static>,
+    mut runner: CairoFunctionRunner,
     #[case] value: Option<BigUint>,
     #[case] check: VmCheck<()>,
 ) {
@@ -911,7 +911,7 @@ fn test_sqrt(
 // Case: n=16
 // Expected: Success.
 #[case::sixteen_coefficients(16)]
-fn test_horner_eval(mut runner: CairoFunctionRunner<'static>, #[case] n: usize) {
+fn test_horner_eval(mut runner: CairoFunctionRunner, #[case] n: usize) {
     let mut rng = thread_rng();
     let prime = &*CAIRO_PRIME;
 
@@ -949,7 +949,7 @@ fn test_horner_eval(mut runner: CairoFunctionRunner<'static>, #[case] n: usize) 
 // Case: x=random
 // Expected: Success.
 #[case::random(None)]
-fn test_is_quad_residue(mut runner: CairoFunctionRunner<'static>, #[case] x: Option<BigUint>) {
+fn test_is_quad_residue(mut runner: CairoFunctionRunner, #[case] x: Option<BigUint>) {
     let prime = &*CAIRO_PRIME;
 
     let x = x.unwrap_or_else(|| {
