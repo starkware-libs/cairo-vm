@@ -246,6 +246,19 @@ When running a Cairo program directly using the Cairo-vm repository you would fi
   cairo_runner.initialize_segments(None);
   ```
 
+When using cairo-vm with the Starknet devnet there are additional parameters that are part of the OS context passed on to the `run_from_entrypoint` method that we do not have here when using it directly. These parameters are, for example, initial stacks of the builtins, which are the base of each of them and are needed as they are the implicit arguments of the function.
+
+```rust
+ let _var = cairo_runner.run_from_entrypoint(
+            entrypoint,
+            vec![
+                &MaybeRelocatable::from(2).into(),  //this is the entry point selector
+                &MaybeRelocatable::from((2,0)).into() //this would be the output_ptr for example if our cairo function uses it
+                ],
+            false,
+            &mut hint_processor,
+        );
+```
 ### Running cairo 1 programs
 
 To run a cairo 1 program enter in the folder `cd cairo1-run` and follow the [`cairo1-run documentation`](cairo1-run/README.md)
