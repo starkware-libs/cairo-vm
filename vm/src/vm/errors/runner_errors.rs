@@ -124,6 +124,8 @@ pub enum RunnerError {
     DynamicLayoutLogDilutedUnitsPerStepOverflow(i32),
     #[error("Initialization failure: Cannot run with trace padding disabled without proof mode")]
     DisableTracePaddingWithoutProofMode,
+    #[error("Builtin {0} is not supported in Stwo mode")]
+    UnsupportedStwoBuiltin(BuiltinName),
 }
 
 #[cfg(test)]
