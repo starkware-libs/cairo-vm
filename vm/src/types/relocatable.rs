@@ -7,7 +7,6 @@ use crate::Felt252;
 use crate::{
     relocatable, types::errors::math_errors::MathError, vm::errors::memory_errors::MemoryError,
 };
-use num_bigint::{BigInt, BigUint};
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 
@@ -59,6 +58,12 @@ impl From<(isize, usize)> for MaybeRelocatable {
     }
 }
 
+impl From<usize> for MaybeRelocatable {
+    fn from(num: usize) -> Self {
+        MaybeRelocatable::Int(Felt252::from(num))
+    }
+}
+
 impl From<Felt252> for MaybeRelocatable {
     fn from(num: Felt252) -> Self {
         MaybeRelocatable::Int(num)
@@ -88,25 +93,6 @@ impl From<Relocatable> for MaybeRelocatable {
         MaybeRelocatable::RelocatableValue(rel)
     }
 }
-
-// Implement primitive and big-int (owned + reference) conversions by first converting to Felt252,
-// then wrapping as MaybeRelocatable::Int.
-macro_rules! impl_from_for_maybe_relocatable {
-    ($($t:ty),* $(,)?) => {
-        $(
-            impl From<$t> for MaybeRelocatable {
-                fn from(num: $t) -> Self {
-                    MaybeRelocatable::Int(Felt252::from(num))
-                }
-            }
-        )*
-    };
-}
-
-impl_from_for_maybe_relocatable!(
-    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, BigUint, BigInt, &BigUint,
-    &BigInt
-);
 
 impl Display for MaybeRelocatable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -410,7 +396,6 @@ mod tests {
     use super::*;
     use crate::{felt_hex, felt_str};
     use crate::{relocatable, utils::test_utils::mayberelocatable};
-    use num_bigint::{BigInt, BigUint};
 
     use proptest::prelude::*;
 
@@ -442,45 +427,6 @@ mod tests {
                 .map(|offset| (0, offset).into());
             prop_assert_eq!((rel + big_zero).ok(), sum_zero);
         }
-    }
-
-    #[test]
-    // Verifies primitive integers convert into `MaybeRelocatable::Int` via the macro-generated impls.
-    fn maybe_relocatable_from_primitive_via_macro() {
-        let value = MaybeRelocatable::from(42_u8);
-        assert_eq!(value, MaybeRelocatable::Int(Felt252::from(42_u8)));
-    }
-
-    #[test]
-    // Verifies owned `BigUint`/`BigInt` values convert into `MaybeRelocatable::Int`.
-    fn maybe_relocatable_from_owned_bigints_via_macro() {
-        let big_uint = BigUint::from(123_u32);
-        let big_int = BigInt::from(456_i32);
-
-        assert_eq!(
-            MaybeRelocatable::from(big_uint),
-            MaybeRelocatable::Int(Felt252::from(123_u32))
-        );
-        assert_eq!(
-            MaybeRelocatable::from(big_int),
-            MaybeRelocatable::Int(Felt252::from(456_i32))
-        );
-    }
-
-    #[test]
-    // Verifies referenced `&BigUint`/`&BigInt` values convert into `MaybeRelocatable::Int`.
-    fn maybe_relocatable_from_referenced_bigints_via_macro() {
-        let big_uint = BigUint::from(789_u32);
-        let big_int = BigInt::from(321_i32);
-
-        assert_eq!(
-            MaybeRelocatable::from(&big_uint),
-            MaybeRelocatable::Int(Felt252::from(789_u32))
-        );
-        assert_eq!(
-            MaybeRelocatable::from(&big_int),
-            MaybeRelocatable::Int(Felt252::from(321_i32))
-        );
     }
 
     #[test]

@@ -30,11 +30,14 @@ use crate::{
     utils::is_subsequence,
     vm::{
         errors::{
+            cairo_run_errors::CairoRunError,
             memory_errors::{InsufficientAllocatedCellsError, MemoryError},
             runner_errors::RunnerError,
             trace_errors::TraceError,
             vm_errors::VirtualMachineError,
+            vm_exception::VmException,
         },
+        security::verify_secure_runner,
         {
             runners::builtin_runner::{
                 BitwiseBuiltinRunner, BuiltinRunner, EcOpBuiltinRunner, HashBuiltinRunner,
@@ -80,34 +83,16 @@ pub enum CairoArg {
     Composed(Vec<CairoArg>),
 }
 
-// Converts a vector of values into an array-style Cairo argument.
-impl<T> From<Vec<T>> for CairoArg
-where
-    T: Into<MaybeRelocatable>,
-{
-    fn from(other: Vec<T>) -> Self {
-        CairoArg::Array(other.into_iter().map(Into::into).collect())
+impl From<MaybeRelocatable> for CairoArg {
+    fn from(other: MaybeRelocatable) -> Self {
+        CairoArg::Single(other)
     }
 }
 
-// Converts a single value into a single-item Cairo argument.
-impl<T> From<T> for CairoArg
-where
-    T: Into<MaybeRelocatable>,
-{
-    fn from(other: T) -> Self {
-        CairoArg::Single(other.into())
+impl From<Vec<MaybeRelocatable>> for CairoArg {
+    fn from(other: Vec<MaybeRelocatable>) -> Self {
+        CairoArg::Array(other)
     }
-}
-
-/// Creates a `Vec<CairoArg>` from a list of expressions.
-///
-/// Each expression is converted using `From<T> for CairoArg`.
-#[macro_export]
-macro_rules! cairo_args {
-    ($($x:expr),* $(,)?) => {
-        vec![$($crate::vm::runners::cairo_runner::CairoArg::from($x)),*]
-    };
 }
 
 // ================
@@ -574,7 +559,7 @@ impl CairoRunner {
         Ok(())
     }
 
-    pub fn is_proof_mode(&self) -> bool {
+    fn is_proof_mode(&self) -> bool {
         self.runner_mode == RunnerMode::ProofModeCanonical
             || self.runner_mode == RunnerMode::ProofModeCairo1
     }
@@ -1321,6 +1306,38 @@ impl CairoRunner {
         }
         self.vm.segments.finalize_zero_segment();
         self.segments_finalized = true;
+        Ok(())
+    }
+
+    #[allow(clippy::result_large_err)]
+    /// Runs a cairo program from a give entrypoint, indicated by its pc offset, with the given arguments.
+    /// If `verify_secure` is set to true, [verify_secure_runner] will be called to run extra verifications.
+    /// `program_segment_size` is only used by the [verify_secure_runner] function and will be ignored if `verify_secure` is set to false.
+    pub fn run_from_entrypoint(
+        &mut self,
+        entrypoint: usize,
+        args: &[&CairoArg],
+        verify_secure: bool,
+        program_segment_size: Option<usize>,
+        hint_processor: &mut dyn HintProcessor,
+    ) -> Result<(), CairoRunError> {
+        let stack = args
+            .iter()
+            .map(|arg| self.vm.segments.gen_cairo_arg(arg))
+            .collect::<Result<Vec<MaybeRelocatable>, VirtualMachineError>>()?;
+        let return_fp = MaybeRelocatable::from(0);
+        let end = self.initialize_function_entrypoint(entrypoint, stack, return_fp)?;
+
+        self.initialize_vm()?;
+
+        self.run_until_pc(end, hint_processor)
+            .map_err(|err| VmException::from_vm_error(self, err))?;
+        self.end_run(true, false, hint_processor, self.is_proof_mode())?;
+
+        if verify_secure {
+            verify_secure_runner(self, false, program_segment_size)?;
+        }
+
         Ok(())
     }
 
@@ -4940,6 +4957,107 @@ mod tests {
     }
 
     #[test]
+    fn run_from_entrypoint_custom_program_test() {
+        let program = Program::from_bytes(
+            include_bytes!("../../../../cairo_programs/example_program.json"),
+            None,
+        )
+        .unwrap();
+        let mut cairo_runner = cairo_runner!(program, LayoutName::all_cairo, false, true);
+        let mut hint_processor = BuiltinHintProcessor::new_empty();
+
+        //this entrypoint tells which function to run in the cairo program
+        let main_entrypoint = program
+            .shared_program_data
+            .identifiers
+            .get("__main__.main")
+            .unwrap()
+            .pc
+            .unwrap();
+
+        cairo_runner.initialize_builtins(false).unwrap();
+        cairo_runner.initialize_segments(None);
+        assert_matches!(
+            cairo_runner.run_from_entrypoint(
+                main_entrypoint,
+                &[
+                    &mayberelocatable!(2).into(),
+                    &MaybeRelocatable::from((2, 0)).into()
+                ], //range_check_ptr
+                true,
+                None,
+                &mut hint_processor,
+            ),
+            Ok(())
+        );
+
+        let mut new_cairo_runner = cairo_runner!(program, LayoutName::all_cairo, false, true);
+        let mut hint_processor = BuiltinHintProcessor::new_empty();
+
+        new_cairo_runner.initialize_builtins(false).unwrap();
+        new_cairo_runner.initialize_segments(None);
+
+        let fib_entrypoint = program
+            .shared_program_data
+            .identifiers
+            .get("__main__.evaluate_fib")
+            .unwrap()
+            .pc
+            .unwrap();
+
+        assert_matches!(
+            new_cairo_runner.run_from_entrypoint(
+                fib_entrypoint,
+                &[
+                    &mayberelocatable!(2).into(),
+                    &MaybeRelocatable::from((2, 0)).into()
+                ],
+                true,
+                None,
+                &mut hint_processor,
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn run_from_entrypoint_bitwise_test_check_memory_holes() {
+        let program = Program::from_bytes(
+            include_bytes!("../../../../cairo_programs/bitwise_builtin_test.json"),
+            None,
+        )
+        .unwrap();
+        let mut cairo_runner = cairo_runner!(program, LayoutName::all_cairo, false, true);
+        let mut hint_processor = BuiltinHintProcessor::new_empty();
+
+        //this entrypoint tells which function to run in the cairo program
+        let main_entrypoint = program
+            .shared_program_data
+            .identifiers
+            .get("__main__.main")
+            .unwrap()
+            .pc
+            .unwrap();
+
+        cairo_runner.initialize_function_runner().unwrap();
+
+        assert!(cairo_runner
+            .run_from_entrypoint(
+                main_entrypoint,
+                &[
+                    &MaybeRelocatable::from((2, 0)).into() //bitwise_ptr
+                ],
+                true,
+                None,
+                &mut hint_processor,
+            )
+            .is_ok());
+
+        // Check that memory_holes == 0
+        assert!(cairo_runner.get_memory_holes().unwrap().is_zero());
+    }
+
+    #[test]
     fn cairo_arg_from_single() {
         let expected = CairoArg::Single(MaybeRelocatable::from((0, 0)));
         let value = MaybeRelocatable::from((0, 0));
@@ -4951,34 +5069,6 @@ mod tests {
         let expected = CairoArg::Array(vec![MaybeRelocatable::from((0, 0))]);
         let value = vec![MaybeRelocatable::from((0, 0))];
         assert_eq!(expected, value.into())
-    }
-
-    #[test]
-    // Verifies converting `Vec<T>` into `CairoArg` produces the expected array argument.
-    fn cairo_arg_from_vec_of_ints() {
-        let expected = CairoArg::Array(vec![
-            MaybeRelocatable::from(Felt252::from(1)),
-            MaybeRelocatable::from(Felt252::from(2)),
-            MaybeRelocatable::from(Felt252::from(3)),
-        ]);
-        let value = vec![1_i32, 2_i32, 3_i32];
-        assert_eq!(expected, CairoArg::from(value))
-    }
-
-    #[test]
-    // Verifies `cairo_args!` builds a `Vec<CairoArg>` from mixed argument types.
-    fn cairo_args_macro_builds_vec_of_cairo_args() {
-        let expected = vec![
-            CairoArg::Single(MaybeRelocatable::from(Felt252::from(7))),
-            CairoArg::Single(MaybeRelocatable::from((1, 3))),
-            CairoArg::Array(vec![
-                MaybeRelocatable::from(Felt252::from(9)),
-                MaybeRelocatable::from(Felt252::from(10)),
-            ]),
-        ];
-
-        let args = crate::cairo_args![7_i32, (1, 3), vec![9_i32, 10_i32],];
-        assert_eq!(args, expected);
     }
 
     fn setup_execution_resources() -> (ExecutionResources, ExecutionResources) {
@@ -5040,6 +5130,42 @@ mod tests {
         assert!(combined_resources
             .builtin_instance_counter
             .contains_key(&BuiltinName::range_check));
+    }
+
+    #[test]
+    fn run_from_entrypoint_substitute_error_message_test() {
+        let program = Program::from_bytes(
+            include_bytes!("../../../../cairo_programs/bad_programs/error_msg_function.json"),
+            None,
+        )
+        .unwrap();
+        let mut cairo_runner = cairo_runner!(program, LayoutName::all_cairo, false, true);
+        let mut hint_processor = BuiltinHintProcessor::new_empty();
+
+        //this entrypoint tells which function to run in the cairo program
+        let main_entrypoint = program
+            .shared_program_data
+            .identifiers
+            .get("__main__.main")
+            .unwrap()
+            .pc
+            .unwrap();
+
+        cairo_runner.initialize_builtins(false).unwrap();
+        cairo_runner.initialize_segments(None);
+
+        let result =
+            cairo_runner.run_from_entrypoint(main_entrypoint, &[], true, None, &mut hint_processor);
+        match result {
+            Err(CairoRunError::VmException(exception)) => {
+                assert_eq!(
+                    exception.error_attr_value,
+                    Some(String::from("Error message: Test error\n"))
+                )
+            }
+            Err(_) => panic!("Wrong error returned, expected VmException"),
+            Ok(_) => panic!("Expected run to fail"),
+        }
     }
 
     #[test]

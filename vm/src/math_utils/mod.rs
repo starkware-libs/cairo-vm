@@ -397,7 +397,7 @@ fn legendre_symbol(a: &BigUint, p: &BigUint) -> i8 {
 // Ported from sympy implementation
 // Simplified as a & p are nonnegative
 // Asumes p is a prime number
-pub fn is_quad_residue(a: &BigUint, p: &BigUint) -> Result<bool, MathError> {
+pub(crate) fn is_quad_residue(a: &BigUint, p: &BigUint) -> Result<bool, MathError> {
     if p.is_zero() {
         return Err(MathError::IsQuadResidueZeroPrime);
     }
