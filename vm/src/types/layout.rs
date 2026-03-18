@@ -41,7 +41,7 @@ pub struct CairoLayout {
 }
 
 impl CairoLayout {
-    pub(crate) fn new(
+    pub fn new(
         layout: LayoutName,
         dynamic_layout_params: Option<CairoLayoutParams>,
     ) -> Result<CairoLayout, CairoLayoutError> {

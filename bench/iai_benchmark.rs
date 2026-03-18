@@ -1,3 +1,4 @@
+use cairo_vm::types::layout::CairoLayout;
 use core::hint::black_box;
 use iai_callgrind::library_benchmark;
 use iai_callgrind::library_benchmark_group;
@@ -36,8 +37,7 @@ fn build_runner() {
     let program = parse_program_helper();
     let runner = CairoRunner::new(
         black_box(&program),
-        LayoutName::starknet_with_keccak,
-        None,
+        CairoLayout::new(LayoutName::starknet_with_keccak, None).unwrap(),
         false,
         false,
         false,
@@ -54,8 +54,7 @@ fn build_runner_helper() -> CairoRunner {
     let program = Program::from_bytes(program.as_slice(), Some("main")).unwrap();
     CairoRunner::new(
         &program,
-        LayoutName::starknet_with_keccak,
-        None,
+        CairoLayout::new(LayoutName::starknet_with_keccak, None).unwrap(),
         false,
         false,
         false,
