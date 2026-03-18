@@ -12,6 +12,8 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 
 #### Upcoming Changes
 
+* feat: implement CairoLayout::new from layout name and dynamic params [#2362](https://github.com/starkware-libs/cairo-vm/pull/2362)
+
 * Add Stwo cairo runner API [#2351](https://github.com/lambdaclass/cairo-vm/pull/2351)
 
 * Add union merge strategy for CHANGELOG.md [#2345](https://github.com/lambdaclass/cairo-vm/pull/2345)

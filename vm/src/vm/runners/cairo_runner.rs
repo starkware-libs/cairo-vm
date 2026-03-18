@@ -196,32 +196,10 @@ impl CairoRunner {
         trace_enabled: bool,
         disable_trace_padding: bool,
     ) -> Result<CairoRunner, RunnerError> {
-        let cairo_layout = match layout {
-            LayoutName::plain => CairoLayout::plain_instance(),
-            LayoutName::small => CairoLayout::small_instance(),
-            LayoutName::dex => CairoLayout::dex_instance(),
-            LayoutName::recursive => CairoLayout::recursive_instance(),
-            LayoutName::starknet => CairoLayout::starknet_instance(),
-            LayoutName::starknet_with_keccak => CairoLayout::starknet_with_keccak_instance(),
-            LayoutName::recursive_large_output => CairoLayout::recursive_large_output_instance(),
-            LayoutName::recursive_with_poseidon => CairoLayout::recursive_with_poseidon(),
-            LayoutName::all_cairo => CairoLayout::all_cairo_instance(),
-            LayoutName::all_cairo_stwo => CairoLayout::all_cairo_stwo_instance(),
-            LayoutName::stwo_no_ecop => CairoLayout::stwo_no_ecop_instance(),
-            LayoutName::all_solidity => CairoLayout::all_solidity_instance(),
-            LayoutName::perpetual => CairoLayout::perpetual_instance(),
-            LayoutName::dex_with_bitwise => CairoLayout::dex_with_bitwise_instance(),
-            LayoutName::dynamic => {
-                let params =
-                    dynamic_layout_params.ok_or(RunnerError::MissingDynamicLayoutParams)?;
-
-                CairoLayout::dynamic_instance(params)?
-            }
-        };
         Ok(CairoRunner {
             program: program.clone(),
             vm: VirtualMachine::new(trace_enabled, disable_trace_padding),
-            layout: cairo_layout,
+            layout: CairoLayout::new(layout, dynamic_layout_params)?,
             final_pc: None,
             program_base: None,
             execution_base: None,
