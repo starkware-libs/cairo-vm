@@ -38,8 +38,7 @@ mod tests {
 
     #[test]
     fn format_alias_missing_destination_error() {
-        let error =
-            ProgramError::AliasMissingDestination(String::from("__main__.assert_nn"));
+        let error = ProgramError::AliasMissingDestination(String::from("__main__.assert_nn"));
         let formatted_error = format!("{error}");
         assert_eq!(
             formatted_error,
