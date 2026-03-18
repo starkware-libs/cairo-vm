@@ -574,7 +574,7 @@ impl CairoRunner {
         Ok(())
     }
 
-    fn is_proof_mode(&self) -> bool {
+    pub fn is_proof_mode(&self) -> bool {
         self.runner_mode == RunnerMode::ProofModeCanonical
             || self.runner_mode == RunnerMode::ProofModeCairo1
     }
