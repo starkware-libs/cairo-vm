@@ -811,7 +811,7 @@ mod tests {
         use crate::{
             air_private_input::{ModInput, ModInputInstance, ModInputMemoryVars, PrivateInput},
             hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
-            types::layout_name::LayoutName,
+            types::{layout::CairoLayout, layout_name::LayoutName},
             utils::test_utils::Program,
             vm::runners::cairo_runner::CairoRunner,
             Felt252,
@@ -826,8 +826,7 @@ mod tests {
         let proof_mode = true;
         let mut runner = CairoRunner::new(
             &program,
-            LayoutName::all_cairo,
-            None,
+            CairoLayout::new(LayoutName::all_cairo, None).unwrap(),
             proof_mode,
             false,
             false,

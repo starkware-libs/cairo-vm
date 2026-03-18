@@ -1,5 +1,5 @@
 use cairo_vm::{
-    types::{layout_name::LayoutName, program::Program},
+    types::{layout::CairoLayout, layout_name::LayoutName, program::Program},
     vm::runners::cairo_runner::CairoRunner,
 };
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
@@ -29,8 +29,7 @@ fn build_many_runners(c: &mut Criterion) {
             _ = black_box(
                 CairoRunner::new(
                     black_box(&program),
-                    black_box(LayoutName::starknet_with_keccak),
-                    black_box(None),
+                    black_box(CairoLayout::new(LayoutName::starknet_with_keccak, None).unwrap()),
                     black_box(false),
                     black_box(false),
                     black_box(false),
@@ -50,8 +49,7 @@ fn load_program_data(c: &mut Criterion) {
             || {
                 CairoRunner::new(
                     &program,
-                    LayoutName::starknet_with_keccak,
-                    None,
+                    CairoLayout::new(LayoutName::starknet_with_keccak, None).unwrap(),
                     false,
                     false,
                     false,
