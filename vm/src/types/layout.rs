@@ -1,4 +1,10 @@
-use crate::{types::layout_name::LayoutName, vm::errors::runner_errors::RunnerError};
+use crate::{
+    types::{
+        instance_definitions::diluted_pool_instance_def::DilutedPoolInstanceDefError,
+        layout_name::LayoutName,
+    },
+    vm::errors::runner_errors::RunnerError,
+};
 
 use super::{
     builtin_name::BuiltinName,
@@ -12,6 +18,15 @@ pub(crate) const DEFAULT_MEMORY_UNITS_PER_STEP: u32 = 8;
 pub(crate) const DEFAULT_CPU_COMPONENT_STEP: u32 = 1;
 
 use serde::{Deserialize, Deserializer, Serialize};
+use thiserror::Error;
+
+#[derive(Debug, PartialEq, Error)]
+pub enum CairoLayoutError {
+    #[error("Missing dynamic layout parameters")]
+    MissingDynamicLayoutParams,
+    #[error(transparent)]
+    DilutedPoolInstanceDef(#[from] DilutedPoolInstanceDefError),
+}
 
 #[derive(Serialize, Debug)]
 pub struct CairoLayout {
@@ -25,6 +40,34 @@ pub struct CairoLayout {
 }
 
 impl CairoLayout {
+    pub(crate) fn new(
+        layout: LayoutName,
+        dynamic_layout_params: Option<CairoLayoutParams>,
+    ) -> Result<CairoLayout, CairoLayoutError> {
+        Ok(match layout {
+            LayoutName::plain => CairoLayout::plain_instance(),
+            LayoutName::small => CairoLayout::small_instance(),
+            LayoutName::dex => CairoLayout::dex_instance(),
+            LayoutName::recursive => CairoLayout::recursive_instance(),
+            LayoutName::starknet => CairoLayout::starknet_instance(),
+            LayoutName::starknet_with_keccak => CairoLayout::starknet_with_keccak_instance(),
+            LayoutName::recursive_large_output => CairoLayout::recursive_large_output_instance(),
+            LayoutName::recursive_with_poseidon => CairoLayout::recursive_with_poseidon(),
+            LayoutName::all_cairo => CairoLayout::all_cairo_instance(),
+            LayoutName::all_cairo_stwo => CairoLayout::all_cairo_stwo_instance(),
+            LayoutName::stwo_no_ecop => CairoLayout::stwo_no_ecop_instance(),
+            LayoutName::all_solidity => CairoLayout::all_solidity_instance(),
+            LayoutName::perpetual => CairoLayout::perpetual_instance(),
+            LayoutName::dex_with_bitwise => CairoLayout::dex_with_bitwise_instance(),
+            LayoutName::dynamic => {
+                let params =
+                    dynamic_layout_params.ok_or(CairoLayoutError::MissingDynamicLayoutParams)?;
+
+                CairoLayout::dynamic_instance(params)?
+            }
+        })
+    }
+
     pub(crate) fn plain_instance() -> CairoLayout {
         CairoLayout {
             name: LayoutName::plain,
@@ -168,7 +211,9 @@ impl CairoLayout {
         }
     }
 
-    pub(crate) fn dynamic_instance(params: CairoLayoutParams) -> Result<CairoLayout, RunnerError> {
+    pub(crate) fn dynamic_instance(
+        params: CairoLayoutParams,
+    ) -> Result<CairoLayout, CairoLayoutError> {
         let diluted_pool =
             DilutedPoolInstanceDef::from_log_units_per_step(params.log_diluted_units_per_step)?;
         Ok(CairoLayout {
