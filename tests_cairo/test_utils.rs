@@ -1,34 +1,41 @@
-use std::path::Path;
-
-use cairo_vm::types::program::Program;
-
-/// Loads a compiled Cairo program from a `.json` file located next to its `.cairo` source.
+/// Loads a compiled Cairo `.json` program from the same directory as the calling source file.
 ///
-/// `relative_path` is relative to the `tests_cairo/` directory.
-/// Example: `load_cairo_program("math/main_math_test.json")`
+/// Pass only the filename (no directory prefix). The directory is inferred from the call site
+/// via `file!()`, so the `.json` must live next to the `.cairo` and `.rs` files.
+///
+/// # Example
+/// ```rust
+/// static PROGRAM: LazyLock<Program> = LazyLock::new(|| load_cairo_program!("main_math_test.json"));
+/// ```
 ///
 /// # Panics
 /// - If the `.json` file does not exist: run `make tests_cairo_programs` first.
 /// - If the `.json` file cannot be parsed as a Cairo `Program`.
-pub fn load_cairo_program(relative_path: &str) -> Program {
-    // CARGO_MANIFEST_DIR is the `vm/` crate directory.
-    // `tests_cairo/` lives one level up (at the workspace root).
-    let tests_cairo_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("vm crate should have a parent directory")
-        .join("tests_cairo");
+#[macro_export]
+macro_rules! load_cairo_program {
+    ($name:literal) => {{
+        // file!() expands at the call site, giving the path of the calling source file
+        // relative to the workspace root (e.g. "tests_cairo/math/math_test.rs").
+        // We derive the directory from it and join with the requested filename.
+        let source_dir = std::path::Path::new(file!())
+            .parent()
+            .expect("source file should have a parent directory");
+        // CARGO_MANIFEST_DIR is the `vm/` crate dir; workspace root is one level up.
+        let workspace_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("vm crate should have a parent directory");
+        let json_path = workspace_root.join(source_dir).join($name);
 
-    let json_path = tests_cairo_dir.join(relative_path);
+        let bytes = std::fs::read(&json_path).unwrap_or_else(|err| {
+            panic!(
+                "Cairo program not found at {json_path:?}: {err}\n\
+                 Did you run `make tests_cairo_programs`?"
+            )
+        });
 
-    let bytes = std::fs::read(&json_path).unwrap_or_else(|err| {
-        panic!(
-            "Cairo program not found at {json_path:?}: {err}\n\
-             Did you run `make tests_cairo_programs`?"
-        )
-    });
-
-    Program::from_bytes(&bytes, None)
-        .unwrap_or_else(|e| panic!("Failed to parse Cairo program at {json_path:?}: {e}"))
+        cairo_vm::types::program::Program::from_bytes(&bytes, None)
+            .unwrap_or_else(|e| panic!("Failed to parse Cairo program at {json_path:?}: {e}"))
+    }};
 }
 
 /// Asserts that a `MaybeRelocatable` reference equals a value convertible into `MaybeRelocatable`.
