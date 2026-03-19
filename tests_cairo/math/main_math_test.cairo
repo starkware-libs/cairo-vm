@@ -18,6 +18,9 @@ from starkware.cairo.common.math import (
     sqrt,
     horner_eval,
     is_quad_residue,
+    safe_div,
+    safe_mult,
+    assert_is_power_of_2,
 )
 
 func main() {
