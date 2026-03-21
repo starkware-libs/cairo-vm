@@ -233,7 +233,7 @@ pub mod test_utils {
 
     macro_rules! vm_with_range_check {
         () => {{
-            let mut vm = VirtualMachine::new(false, false);
+            let mut vm = VirtualMachine::default();
             vm.builtin_runners = vec![
                 $crate::vm::runners::builtin_runner::RangeCheckBuiltinRunner::<8>::new(
                     Some(8),
@@ -418,11 +418,14 @@ pub mod test_utils {
 
     macro_rules! vm {
         () => {{
-            crate::vm::vm_core::VirtualMachine::new(false, false)
+            crate::vm::vm_core::VirtualMachine::default()
         }};
 
         ($use_trace:expr) => {{
-            crate::vm::vm_core::VirtualMachine::new($use_trace, false)
+            crate::vm::vm_core::VirtualMachine::new(&crate::vm::vm_core::VirtualMachineConfig {
+                trace_enabled: $use_trace,
+                disable_trace_padding: false,
+            })
         }};
     }
     pub(crate) use vm;
