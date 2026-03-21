@@ -18,7 +18,7 @@ use crate::{
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 
 use crate::{
-    cairo_run::{cairo_run, CairoRunConfig},
+    cairo_run::{cairo_run, Cairo0RunConfig},
     hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
 };
 
@@ -64,7 +64,7 @@ fn run_program(
     error: Option<&str>,
 ) {
     let mut hint_executor = BuiltinHintProcessor::new_empty();
-    let cairo_run_config = CairoRunConfig {
+    let cairo_run_config = Cairo0RunConfig {
         layout: layout.unwrap_or(LayoutName::all_cairo),
         relocate_mem: true,
         trace_enabled: true,

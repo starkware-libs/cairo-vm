@@ -81,7 +81,7 @@ let hint_processor = BuiltinHintProcessor::new(map, RunResources::default());
 Import the function cairo_run from cairo-vm, and run your compiled program
 
 ```rust
-use cairo_vm::cairo_run::{cairo_run, CairoRunConfig};
+use cairo_vm::cairo_run::{cairo_run, Cairo0RunConfig};
 use cairo_vm::types::layout_name::LayoutName;
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -94,7 +94,7 @@ reader.read_to_end(&mut buffer).expect("Couldn't read file");
 
 cairo_run(
         &buffer,
-        &CairoRunConfig {
+        &Cairo0RunConfig {
             layout: LayoutName::all_cairo,
             ..Default::default()
         },

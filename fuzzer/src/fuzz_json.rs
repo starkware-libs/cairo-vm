@@ -1,6 +1,6 @@
 use arbitrary::{self, Arbitrary, Unstructured};
 use cairo_vm::{
-    cairo_run::{cairo_run, CairoRunConfig},
+    cairo_run::{cairo_run, Cairo0RunConfig},
     hint_processor::builtin_hint_processor::{
         builtin_hint_processor_definition::BuiltinHintProcessor, hint_code::*,
     },
@@ -348,12 +348,12 @@ fn prepend_mod_name(u: &mut Unstructured) -> arbitrary::Result<Vec<String>> {
 
 fn main() {
     loop {
-        fuzz!(|data: (CairoRunConfig, ProgramJson)| {
+        fuzz!(|data: (Cairo0RunConfig, ProgramJson)| {
             let (cairo_run_config, program_json) = data;
             if let Ok(program_raw) = serde_json::to_string_pretty(&program_json) {
                 let _ = cairo_run(
                     program_raw.as_bytes(),
-                    &CairoRunConfig::default(),
+                    &Cairo0RunConfig::default(),
                     &mut BuiltinHintProcessor::new_empty(),
                 );
                 let _ = cairo_run(
