@@ -1735,7 +1735,7 @@ impl MulAssign<usize> for ExecutionResources {
 mod tests {
     use super::*;
     use crate::air_private_input::{PrivateInput, PrivateInputSignature, SignatureInput};
-    use crate::cairo_run::{cairo_run, CairoRunConfig};
+    use crate::cairo_run::{cairo_run, Cairo0RunConfig};
     use crate::types::instance_definitions::bitwise_instance_def::CELLS_PER_BITWISE;
     use crate::types::instance_definitions::keccak_instance_def::CELLS_PER_KECCAK;
     use crate::types::layout_name::LayoutName;
@@ -3948,7 +3948,7 @@ mod tests {
     fn get_builtin_segments_info_non_proof_mode() {
         let program_data =
             include_bytes!("../../../../cairo_programs/proof_programs/assert_nn.json");
-        let cairo_run_config = CairoRunConfig {
+        let cairo_run_config = Cairo0RunConfig {
             entrypoint: "main",
             trace_enabled: false,
             relocate_mem: false,
@@ -3969,7 +3969,7 @@ mod tests {
     fn get_builtin_segments_info_proof_mode() {
         let program_data =
             include_bytes!("../../../../cairo_programs/proof_programs/assert_nn.json");
-        let cairo_run_config = CairoRunConfig {
+        let cairo_run_config = Cairo0RunConfig {
             entrypoint: "main",
             trace_enabled: false,
             relocate_mem: false,
@@ -4008,7 +4008,7 @@ mod tests {
     #[test]
     fn get_execution_resources_run_program() {
         let program_data = include_bytes!("../../../../cairo_programs/fibonacci.json");
-        let cairo_run_config = CairoRunConfig {
+        let cairo_run_config = Cairo0RunConfig {
             entrypoint: "main",
             trace_enabled: true,
             relocate_mem: false,
@@ -4026,7 +4026,7 @@ mod tests {
     #[test]
     fn get_execution_resources_run_program_no_trace() {
         let program_data = include_bytes!("../../../../cairo_programs/fibonacci.json");
-        let cairo_run_config = CairoRunConfig {
+        let cairo_run_config = Cairo0RunConfig {
             entrypoint: "main",
             trace_enabled: false,
             relocate_mem: false,
@@ -4088,7 +4088,7 @@ mod tests {
         let program_data = include_bytes!(
             "../../../../cairo_programs/stwo_exclusive_programs/blake2s_opcode_test.json"
         );
-        let cairo_run_config = CairoRunConfig {
+        let cairo_run_config = Cairo0RunConfig {
             entrypoint: "main",
             trace_enabled: false,
             relocate_mem: false,
@@ -5398,7 +5398,7 @@ mod tests {
             include_bytes!("../../../../cairo_programs/proof_programs/common_signature.json");
         let runner = crate::cairo_run::cairo_run(
             program_content,
-            &CairoRunConfig {
+            &Cairo0RunConfig {
                 proof_mode: true,
                 fill_holes: true,
                 layout: LayoutName::all_cairo,
@@ -5456,7 +5456,7 @@ mod tests {
             include_bytes!("../../../../cairo_programs/proof_programs/common_signature.json");
         let runner = crate::cairo_run::cairo_run(
             program_content,
-            &CairoRunConfig {
+            &Cairo0RunConfig {
                 trace_enabled: true,
                 layout: LayoutName::all_cairo,
                 ..Default::default()
@@ -5531,7 +5531,7 @@ mod tests {
             include_bytes!("../../../../cairo_programs/proof_programs/common_signature.json");
         let runner = crate::cairo_run::cairo_run(
             program_content,
-            &CairoRunConfig {
+            &Cairo0RunConfig {
                 layout: LayoutName::all_cairo,
                 ..Default::default()
             },
@@ -5556,7 +5556,7 @@ mod tests {
             include_bytes!("../../../../cairo_programs/proof_programs/bitwise_builtin_test.json");
         let runner = crate::cairo_run::cairo_run(
             program_content,
-            &CairoRunConfig {
+            &Cairo0RunConfig {
                 layout: LayoutName::all_cairo,
                 ..Default::default()
             },
@@ -5856,7 +5856,7 @@ mod tests {
             // Legacy run with all_cairo_stwo layout
             let legacy_runner = crate::cairo_run::cairo_run(
                 program_bytes,
-                &CairoRunConfig {
+                &Cairo0RunConfig {
                     trace_enabled: true,
                     relocate_mem: true,
                     relocate_trace: true,

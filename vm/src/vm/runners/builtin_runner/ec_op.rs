@@ -801,9 +801,9 @@ mod tests {
     fn catch_point_same_x() {
         let program =
             include_bytes!("../../../../../cairo_programs/bad_programs/ec_op_same_x.json");
-        let cairo_run_config = crate::cairo_run::CairoRunConfig {
+        let cairo_run_config = crate::cairo_run::Cairo0RunConfig {
             layout: LayoutName::all_cairo,
-            ..crate::cairo_run::CairoRunConfig::default()
+            ..crate::cairo_run::Cairo0RunConfig::default()
         };
         let result = crate::cairo_run::cairo_run(
             program,
@@ -825,9 +825,9 @@ mod tests {
     fn catch_point_not_in_curve() {
         let program =
             include_bytes!("../../../../../cairo_programs/bad_programs/ec_op_not_in_curve.json");
-        let cairo_run_config = crate::cairo_run::CairoRunConfig {
+        let cairo_run_config = crate::cairo_run::Cairo0RunConfig {
             layout: LayoutName::all_cairo,
-            ..crate::cairo_run::CairoRunConfig::default()
+            ..crate::cairo_run::Cairo0RunConfig::default()
         };
         let result = crate::cairo_run::cairo_run(
             program,

@@ -13,6 +13,8 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 #### Upcoming Changes
 
 * Add Stwo cairo runner API [#2351](https://github.com/starkware-libs/cairo-vm/pull/2351)
+* refactor: rename CairoRunConfig to Cairo0RunConfig [#2365](https://github.com/starkware-libs/cairo-vm/pull/2365)
+
 * feat: add disable_trace_padding field to Cairo1RunConfig [#2364](https://github.com/starkware-libs/cairo-vm/pull/2364)
 
 * feat: refactor CairoRunner ctors to accept CairoLayout directly [#2363](https://github.com/starkware-libs/cairo-vm/pull/2363)

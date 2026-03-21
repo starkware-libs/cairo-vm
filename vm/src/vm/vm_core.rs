@@ -127,7 +127,7 @@ pub struct VirtualMachine {
     pub(crate) rc_limits: Option<(isize, isize)>,
     skip_instruction_execution: bool,
     run_finished: bool,
-    // This flag is a parallel to the one in `struct CairoRunConfig`.
+    // This flag is a parallel to the one in `struct Cairo0RunConfig`.
     pub(crate) disable_trace_padding: bool,
     instruction_cache: Vec<Option<Instruction>>,
     #[cfg(feature = "test_utils")]
