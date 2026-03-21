@@ -249,7 +249,7 @@ mod tests {
     /// Test for relocate_all_dictionaries error cases
     #[test]
     fn test_relocate_all_dictionaries_errors() {
-        let mut vm = VirtualMachine::new(false, false);
+        let mut vm = VirtualMachine::default();
 
         // Test 1: First segment is a temporary segment (should error)
         {
@@ -297,7 +297,7 @@ mod tests {
     /// Test for relocate_all_dictionaries when no temporary segments
     #[test]
     fn test_relocate_all_dictionaries_no_temporary_segments() {
-        let mut vm = VirtualMachine::new(false, false);
+        let mut vm = VirtualMachine::default();
         let mut dict_manager = DictManagerExecScope::new(false);
 
         // Adding some trackers should not cause any errors
