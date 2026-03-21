@@ -145,7 +145,7 @@ fn run(args: impl Iterator<Item = String>) -> Result<(), Error> {
         None => None,
     };
 
-    let cairo_run_config = cairo_run::CairoRunConfig {
+    let cairo_run_config = cairo_run::Cairo0RunConfig {
         entrypoint: &args.entrypoint,
         trace_enabled,
         relocate_mem: args.memory_file.is_some() || args.air_public_input.is_some(),

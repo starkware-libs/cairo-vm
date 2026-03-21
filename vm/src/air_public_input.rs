@@ -185,7 +185,7 @@ mod tests {
     fn serialize_and_deserialize_air_public_input(#[case] program_content: &[u8]) {
         use crate::types::layout_name::LayoutName;
 
-        let config = crate::cairo_run::CairoRunConfig {
+        let config = crate::cairo_run::Cairo0RunConfig {
             proof_mode: true,
             fill_holes: true,
             relocate_mem: true,
