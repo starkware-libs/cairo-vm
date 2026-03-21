@@ -269,9 +269,8 @@ mod tests {
     use super::*;
     use assert_matches::assert_matches;
     use cairo_vm::{
-        hint_processor::hint_processor_definition::HintProcessor,
-        types::{layout::CairoLayout, program::Program},
-        vm::runners::cairo_runner::CairoRunner,
+        cairo_run::Cairo0RunConfig, hint_processor::hint_processor_definition::HintProcessor,
+        types::program::Program, vm::runners::cairo_runner::CairoRunner,
     };
     use rstest::rstest;
 
@@ -283,10 +282,15 @@ mod tests {
         let program = Program::from_bytes(program_content, Some("main")).unwrap();
         let mut cairo_runner = CairoRunner::new(
             &program,
-            CairoLayout::new(LayoutName::all_cairo, None).unwrap(),
-            false,
-            true,
-            false,
+            &Cairo0RunConfig {
+                layout: LayoutName::all_cairo,
+                proof_mode: false,
+                trace_enabled: true,
+                disable_trace_padding: false,
+                ..Default::default()
+            }
+            .run_config()
+            .unwrap(),
         )
         .unwrap();
         let end = cairo_runner

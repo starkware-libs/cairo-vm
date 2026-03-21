@@ -1,5 +1,6 @@
 use cairo_vm::{
-    types::{layout::CairoLayout, layout_name::LayoutName, program::Program},
+    cairo_run::Cairo0RunConfig,
+    types::{layout_name::LayoutName, program::Program},
     vm::runners::cairo_runner::CairoRunner,
 };
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
@@ -29,10 +30,17 @@ fn build_many_runners(c: &mut Criterion) {
             _ = black_box(
                 CairoRunner::new(
                     black_box(&program),
-                    black_box(CairoLayout::new(LayoutName::starknet_with_keccak, None).unwrap()),
-                    black_box(false),
-                    black_box(false),
-                    black_box(false),
+                    black_box(
+                        &Cairo0RunConfig {
+                            layout: LayoutName::starknet_with_keccak,
+                            proof_mode: false,
+                            trace_enabled: false,
+                            disable_trace_padding: false,
+                            ..Default::default()
+                        }
+                        .run_config()
+                        .unwrap(),
+                    ),
                 )
                 .unwrap(),
             );
@@ -49,10 +57,15 @@ fn load_program_data(c: &mut Criterion) {
             || {
                 CairoRunner::new(
                     &program,
-                    CairoLayout::new(LayoutName::starknet_with_keccak, None).unwrap(),
-                    false,
-                    false,
-                    false,
+                    &Cairo0RunConfig {
+                        layout: LayoutName::starknet_with_keccak,
+                        proof_mode: false,
+                        trace_enabled: false,
+                        disable_trace_padding: false,
+                        ..Default::default()
+                    }
+                    .run_config()
+                    .unwrap(),
                 )
                 .unwrap()
             },

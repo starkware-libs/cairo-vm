@@ -2,7 +2,6 @@ use crate::{tests::*, types::layout_name::LayoutName};
 
 #[cfg(feature = "mod_builtin")]
 use crate::{
-    types::layout::CairoLayout,
     utils::test_utils::Program,
     vm::{
         runners::{builtin_runner::BuiltinRunner, cairo_runner::CairoRunner},
@@ -1070,18 +1069,8 @@ fn run_program_with_custom_mod_builtin_params(
     };
     let mut hint_processor = BuiltinHintProcessor::new_empty();
     let program = Program::from_bytes(data, Some(cairo_run_config.entrypoint)).unwrap();
-    let mut cairo_runner = CairoRunner::new(
-        &program,
-        CairoLayout::new(
-            cairo_run_config.layout,
-            cairo_run_config.dynamic_layout_params,
-        )
-        .unwrap(),
-        cairo_run_config.proof_mode,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
-    )
-    .unwrap();
+    let mut cairo_runner =
+        CairoRunner::new(&program, &cairo_run_config.run_config().unwrap()).unwrap();
 
     let end = cairo_runner.initialize(false).unwrap();
     // Modify add_mod & mul_mod params

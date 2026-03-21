@@ -13,7 +13,7 @@ pub(crate) const BUILTIN_INSTANCES_PER_COMPONENT: u32 = 1;
 
 use serde::Serialize;
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Clone, Serialize, Debug, PartialEq)]
 pub(crate) struct BuiltinsInstanceDef {
     pub(crate) output: bool,
     pub(crate) pedersen: Option<PedersenInstanceDef>,

@@ -34,6 +34,7 @@ use cairo_lang_sierra_type_size::get_type_size_map;
 use cairo_lang_utils::{
     bigint::BigIntAsHex, casts::IntoOrPanic, unordered_hash_map::UnorderedHashMap,
 };
+use cairo_vm::vm::runners::cairo_runner::CairoRunConfig;
 use std::{collections::HashMap, iter::Peekable};
 
 use cairo_vm::{
@@ -136,6 +137,20 @@ impl Cairo1RunConfig<'_> {
     // copying input and output values into it's segment
     fn copy_to_output(&self) -> bool {
         self.append_return_values || self.proof_mode
+    }
+
+    pub fn run_config(&self) -> Result<CairoRunConfig, RunnerError> {
+        let runner_mode = if self.proof_mode {
+            RunnerMode::ProofModeCairo1
+        } else {
+            RunnerMode::ExecutionMode
+        };
+        CairoRunConfig::new(
+            CairoLayout::new(self.layout, self.dynamic_layout_params.clone())?,
+            self.trace_enabled,
+            self.disable_trace_padding,
+            runner_mode,
+        )
     }
 }
 
@@ -262,23 +277,7 @@ pub fn cairo_run_program(
         )?
     };
 
-    let runner_mode = if cairo_run_config.proof_mode {
-        RunnerMode::ProofModeCairo1
-    } else {
-        RunnerMode::ExecutionMode
-    };
-
-    let mut runner = CairoRunner::new_v2(
-        &program,
-        CairoLayout::new(
-            cairo_run_config.layout,
-            cairo_run_config.dynamic_layout_params.clone(),
-        )
-        .map_err(RunnerError::from)?,
-        runner_mode,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
-    );
+    let mut runner = CairoRunner::new_v2(&program, &cairo_run_config.run_config()?);
     let end = runner.initialize(cairo_run_config.proof_mode)?;
     load_arguments(&mut runner, &cairo_run_config, main_func)?;
 

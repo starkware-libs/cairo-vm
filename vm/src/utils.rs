@@ -250,44 +250,60 @@ pub mod test_utils {
         ($program:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
                 &$program,
-                crate::types::layout::CairoLayout::new(
-                    crate::types::layout_name::LayoutName::all_cairo,
-                    None,
-                )
+                &crate::cairo_run::Cairo0RunConfig {
+                    layout: crate::types::layout_name::LayoutName::all_cairo,
+                    proof_mode: false,
+                    trace_enabled: false,
+                    disable_trace_padding: false,
+                    ..Default::default()
+                }
+                .run_config()
                 .unwrap(),
-                false,
-                false,
-                false,
             )
             .unwrap()
         };
         ($program:expr, $layout:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
                 &$program,
-                crate::types::layout::CairoLayout::new($layout, None).unwrap(),
-                false,
-                false,
-                false,
+                &crate::cairo_run::Cairo0RunConfig {
+                    layout: $layout,
+                    proof_mode: false,
+                    trace_enabled: false,
+                    disable_trace_padding: false,
+                    ..Default::default()
+                }
+                .run_config()
+                .unwrap(),
             )
             .unwrap()
         };
         ($program:expr, $layout:expr, $proof_mode:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
                 &$program,
-                crate::types::layout::CairoLayout::new($layout, None).unwrap(),
-                $proof_mode,
-                false,
-                false,
+                &crate::cairo_run::Cairo0RunConfig {
+                    layout: $layout,
+                    proof_mode: $proof_mode,
+                    trace_enabled: false,
+                    disable_trace_padding: false,
+                    ..Default::default()
+                }
+                .run_config()
+                .unwrap(),
             )
             .unwrap()
         };
         ($program:expr, $layout:expr, $proof_mode:expr, $trace_enabled:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
                 &$program,
-                crate::types::layout::CairoLayout::new($layout, None).unwrap(),
-                $proof_mode,
-                $trace_enabled,
-                false,
+                &crate::cairo_run::Cairo0RunConfig {
+                    layout: $layout,
+                    proof_mode: $proof_mode,
+                    trace_enabled: $trace_enabled,
+                    disable_trace_padding: false,
+                    ..Default::default()
+                }
+                .run_config()
+                .unwrap(),
             )
             .unwrap()
         };

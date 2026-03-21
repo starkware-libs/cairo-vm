@@ -29,7 +29,7 @@ pub enum CairoLayoutError {
 }
 
 #[cfg_attr(test, derive(PartialEq))]
-#[derive(Serialize, Debug)]
+#[derive(Clone, Serialize, Debug)]
 pub struct CairoLayout {
     pub(crate) name: LayoutName,
     pub(crate) cpu_component_step: u32,
