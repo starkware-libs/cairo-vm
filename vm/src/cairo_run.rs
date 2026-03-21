@@ -135,7 +135,7 @@ pub fn cairo_run_stwo(
     let _span = span!(Level::INFO, "cairo run stwo").entered();
 
     let proof_mode = cairo_run_config.runner_mode != RunnerMode::ExecutionMode;
-    let mut cairo_runner = CairoRunner::new_stwo(program, &cairo_run_config.run_config()?)?;
+    let mut cairo_runner = CairoRunner::new(program, &cairo_run_config.run_config()?);
     cairo_runner.exec_scopes = exec_scopes;
 
     let end = cairo_runner.initialize_stwo(allowed_builtins)?;
@@ -189,7 +189,7 @@ pub fn cairo_run_program_with_initial_scope(
         .allow_missing_builtins
         .unwrap_or(cairo_run_config.proof_mode);
 
-    let mut cairo_runner = CairoRunner::new(program, &cairo_run_config.run_config()?)?;
+    let mut cairo_runner = CairoRunner::new(program, &cairo_run_config.run_config()?);
 
     cairo_runner.exec_scopes = exec_scopes;
 
@@ -289,7 +289,7 @@ pub fn cairo_run_pie(
     let allow_missing_builtins = cairo_run_config.allow_missing_builtins.unwrap_or_default();
 
     let program = Program::from_stripped_program(&pie.metadata.program);
-    let mut cairo_runner = CairoRunner::new(&program, &cairo_run_config.run_config()?)?;
+    let mut cairo_runner = CairoRunner::new(&program, &cairo_run_config.run_config()?);
 
     let end = cairo_runner.initialize(allow_missing_builtins)?;
     cairo_runner.vm.finalize_segments_by_cairo_pie(pie);
@@ -343,7 +343,7 @@ pub fn cairo_run_pie(
 }
 
 /// Runs a Cairo PIE using the Stwo runtime API.
-/// Same as `cairo_run_pie` but uses `new_stwo` + `initialize_stwo` instead of layouts.
+/// Same as `cairo_run_pie` but uses [StwoCairoRunConfig] + `initialize_stwo` instead of layouts.
 /// Note: Cairo PIEs cannot be run in proof mode.
 /// WARNING: As the RunResources are part of the HintProcessor trait, the caller should make sure that
 /// the number of steps in the `RunResources` matches that of the `ExecutionResources` in the `CairoPie`.
@@ -364,14 +364,14 @@ pub fn cairo_run_pie_stwo(
     pie.run_validity_checks()?;
 
     let program = Program::from_stripped_program(&pie.metadata.program);
-    let mut cairo_runner = CairoRunner::new_stwo(
+    let mut cairo_runner = CairoRunner::new(
         &program,
         &StwoCairoRunConfig {
             runner_mode: RunnerMode::ExecutionMode,
             ..cairo_run_config.clone()
         }
         .run_config()?,
-    )?;
+    );
 
     let end = cairo_runner.initialize_stwo(allowed_builtins)?;
     cairo_runner.vm.finalize_segments_by_cairo_pie(pie);
@@ -442,7 +442,7 @@ pub fn cairo_run_fuzzed_program(
         .allow_missing_builtins
         .unwrap_or(cairo_run_config.proof_mode);
 
-    let mut cairo_runner = CairoRunner::new(&program, &cairo_run_config.run_config()?)?;
+    let mut cairo_runner = CairoRunner::new(&program, &cairo_run_config.run_config()?);
 
     let _end = cairo_runner.initialize(allow_missing_builtins)?;
 

@@ -46,8 +46,7 @@ fn build_runner() {
         }
         .run_config()
         .unwrap(),
-    )
-    .unwrap();
+    );
     core::mem::drop(black_box(runner));
 }
 
@@ -69,7 +68,6 @@ fn build_runner_helper() -> CairoRunner {
         .run_config()
         .unwrap(),
     )
-    .unwrap()
 }
 
 #[library_benchmark]

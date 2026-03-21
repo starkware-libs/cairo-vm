@@ -291,8 +291,7 @@ mod tests {
             }
             .run_config()
             .unwrap(),
-        )
-        .unwrap();
+        );
         let end = cairo_runner
             .initialize(false)
             .map_err(CairoRunError::Runner)?;

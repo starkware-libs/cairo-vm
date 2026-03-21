@@ -836,8 +836,7 @@ mod tests {
             }
             .run_config()
             .unwrap(),
-        )
-        .unwrap();
+        );
 
         let end = runner.initialize(false).unwrap();
         // Modify add_mod & mul_mod params
