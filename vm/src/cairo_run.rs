@@ -16,6 +16,7 @@ use crate::{
         },
         security::verify_secure_runner,
         trace::trace_entry::RelocatedTraceEntry,
+        vm_core::DEFAULT_MAX_TRACEBACK_ENTRIES,
     },
     Felt252,
 };
@@ -51,6 +52,7 @@ pub struct Cairo0RunConfig<'a> {
     ///   instances of the builtin) compared to their sizes at the end of the execution.
     pub disable_trace_padding: bool,
     pub allow_missing_builtins: Option<bool>,
+    pub max_traceback_entries: u32,
 }
 
 impl Default for Cairo0RunConfig<'_> {
@@ -68,6 +70,7 @@ impl Default for Cairo0RunConfig<'_> {
             disable_trace_padding: false,
             allow_missing_builtins: None,
             dynamic_layout_params: None,
+            max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
         }
     }
 }
@@ -84,6 +87,7 @@ impl Cairo0RunConfig<'_> {
             self.trace_enabled,
             self.disable_trace_padding,
             runner_mode,
+            self.max_traceback_entries,
         )
     }
 }
@@ -97,6 +101,7 @@ pub struct StwoCairoRunConfig {
     pub secure_run: bool,
     pub disable_trace_padding: bool,
     pub runner_mode: RunnerMode,
+    pub max_traceback_entries: u32,
 }
 
 impl Default for StwoCairoRunConfig {
@@ -109,6 +114,7 @@ impl Default for StwoCairoRunConfig {
             secure_run: true,
             disable_trace_padding: true,
             runner_mode: RunnerMode::ProofModeCanonical,
+            max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
         }
     }
 }
@@ -120,6 +126,7 @@ impl StwoCairoRunConfig {
             self.trace_enabled,
             self.disable_trace_padding,
             self.runner_mode.clone(),
+            self.max_traceback_entries,
         )
     }
 }

@@ -44,7 +44,7 @@ use super::errors::runner_errors::RunnerError;
 use super::runners::builtin_runner::{ModBuiltinRunner, RC_N_PARTS_STANDARD};
 use super::runners::cairo_pie::CairoPie;
 
-const MAX_TRACEBACK_ENTRIES: u32 = 20;
+pub const DEFAULT_MAX_TRACEBACK_ENTRIES: u32 = 20;
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Operands {
@@ -106,10 +106,20 @@ impl DeducedOperands {
     }
 }
 
-#[derive(Default)]
 pub struct VirtualMachineConfig {
     pub trace_enabled: bool,
     pub disable_trace_padding: bool,
+    pub max_traceback_entries: u32,
+}
+
+impl Default for VirtualMachineConfig {
+    fn default() -> Self {
+        Self {
+            trace_enabled: false,
+            disable_trace_padding: false,
+            max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
+        }
+    }
 }
 
 pub struct VirtualMachine {
@@ -139,6 +149,7 @@ pub struct VirtualMachine {
     #[cfg(feature = "test_utils")]
     pub(crate) hooks: Option<Box<dyn crate::vm::hooks::StepHooks>>,
     pub(crate) relocation_table: Option<Vec<usize>>,
+    pub(crate) max_traceback_entries: u32,
 }
 
 impl Default for VirtualMachine {
@@ -177,6 +188,7 @@ impl VirtualMachine {
             #[cfg(feature = "test_utils")]
             hooks: None,
             relocation_table: None,
+            max_traceback_entries: config.max_traceback_entries,
         }
     }
 
@@ -947,7 +959,7 @@ impl VirtualMachine {
         let mut entries = Vec::<(Relocatable, Relocatable)>::new();
         let mut fp = Relocatable::from((1, self.run_context.fp));
         // Fetch the fp and pc traceback entries
-        for _ in 0..MAX_TRACEBACK_ENTRIES {
+        for _ in 0..self.max_traceback_entries {
             // Get return pc
             let ret_pc = match (fp - 1)
                 .ok()
@@ -1396,6 +1408,7 @@ pub struct VirtualMachineBuilder {
     run_finished: bool,
     #[cfg(feature = "test_utils")]
     pub(crate) hooks: Option<Box<dyn crate::vm::hooks::StepHooks>>,
+    pub(crate) max_traceback_entries: u32,
 }
 
 impl Default for VirtualMachineBuilder {
@@ -1416,6 +1429,7 @@ impl Default for VirtualMachineBuilder {
             run_finished: false,
             #[cfg(feature = "test_utils")]
             hooks: None,
+            max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
         }
     }
 }
@@ -1465,6 +1479,11 @@ impl VirtualMachineBuilder {
         self
     }
 
+    pub fn max_traceback_entries(mut self, max_traceback_entries: u32) -> VirtualMachineBuilder {
+        self.max_traceback_entries = max_traceback_entries;
+        self
+    }
+
     pub fn build(self) -> VirtualMachine {
         VirtualMachine {
             run_context: self.run_context,
@@ -1482,6 +1501,7 @@ impl VirtualMachineBuilder {
             hooks: self.hooks,
             relocation_table: None,
             disable_trace_padding: false,
+            max_traceback_entries: self.max_traceback_entries,
         }
     }
 }
@@ -5240,6 +5260,7 @@ mod tests {
                 segments
             })
             .skip_instruction_execution(true)
+            .max_traceback_entries(100)
             .trace(Some(vec![TraceEntry {
                 pc: (0, 1).into(),
                 ap: 1,

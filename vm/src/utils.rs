@@ -424,7 +424,7 @@ pub mod test_utils {
         ($use_trace:expr) => {{
             crate::vm::vm_core::VirtualMachine::new(&crate::vm::vm_core::VirtualMachineConfig {
                 trace_enabled: $use_trace,
-                disable_trace_padding: false,
+                ..Default::default()
             })
         }};
     }
