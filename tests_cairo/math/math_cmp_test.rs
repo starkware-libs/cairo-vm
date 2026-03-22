@@ -1,11 +1,11 @@
 //! Tests for `math_cmp.cairo`.
 
 use std::sync::LazyLock;
+use cairo_vm::types::program::Program;
 
 use super::math_test_utils::{sub_mod_prime, RC_BOUND};
 use cairo_vm::cairo_args;
 use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::types::program::Program;
 use cairo_vm::utils::CAIRO_PRIME;
 use cairo_vm::vm::runners::cairo_function_runner::CairoFunctionRunner;
 use num_bigint::{BigUint, RandBigInt};
@@ -16,10 +16,8 @@ use rstest::{fixture, rstest};
 // ===================== Shared constants (LazyLock) =====================
 
 /// The compiled Cairo math_cmp program, loaded once and shared across all tests.
-static PROGRAM: LazyLock<Program> = LazyLock::new(|| {
-    let bytes = include_bytes!("math_cmp_compiled.json");
-    Program::from_bytes(bytes, None).expect("Failed to load math_cmp_compiled.json")
-});
+static PROGRAM: LazyLock<Program> =
+    LazyLock::new(|| load_cairo_program!("main_math_cmp_test.json"));
 
 /// Interesting felt values used in test_is_le_felt.
 static INTERESTING_FELTS: LazyLock<Vec<BigUint>> = LazyLock::new(|| {
