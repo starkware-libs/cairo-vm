@@ -156,9 +156,8 @@ fn run_cairo_1_entrypoint(
         .unwrap();
 
     // Load extra data
-    let core_program_end_ptr = (runner.program_base.unwrap()
-        + runner.program.shared_program_data.data.len())
-    .unwrap();
+    let core_program_end_ptr =
+        (runner.program_base.unwrap() + runner.program.shared_program_data.data.len()).unwrap();
     let program_extra_data: Vec<MaybeRelocatable> =
         vec![0x208B7FFF7FFF7FFE_u64.into(), builtin_costs_ptr.into()];
     runner
@@ -186,7 +185,13 @@ fn run_cairo_1_entrypoint(
     let program_segment_size =
         runner.program.shared_program_data.data.len() + program_extra_data.len();
     runner
-        .run_from_entrypoint(EntryPoint::Pc(entrypoint_offset), &entrypoint_args, true, Some(program_segment_size), &mut hint_processor)
+        .run_from_entrypoint(
+            EntryPoint::Pc(entrypoint_offset),
+            &entrypoint_args,
+            true,
+            Some(program_segment_size),
+            &mut hint_processor,
+        )
         .unwrap();
 
     // Check return values
@@ -264,9 +269,8 @@ fn run_cairo_1_entrypoint_with_run_resources(
         .unwrap();
 
     // Load extra data
-    let core_program_end_ptr = (runner.program_base.unwrap()
-        + runner.program.shared_program_data.data.len())
-    .unwrap();
+    let core_program_end_ptr =
+        (runner.program_base.unwrap() + runner.program.shared_program_data.data.len()).unwrap();
     let program_extra_data: Vec<MaybeRelocatable> =
         vec![0x208B7FFF7FFF7FFE_u64.into(), builtin_costs_ptr.into()];
     runner
@@ -293,7 +297,13 @@ fn run_cairo_1_entrypoint_with_run_resources(
 
     let program_segment_size =
         runner.program.shared_program_data.data.len() + program_extra_data.len();
-    runner.run_from_entrypoint(EntryPoint::Pc(entrypoint_offset), &entrypoint_args, true, Some(program_segment_size), hint_processor)?;
+    runner.run_from_entrypoint(
+        EntryPoint::Pc(entrypoint_offset),
+        &entrypoint_args,
+        true,
+        Some(program_segment_size),
+        hint_processor,
+    )?;
 
     // Check return values
     let return_values = runner.vm.get_return_values(5).unwrap();

@@ -1,4 +1,3 @@
-
 //! Function runner extension methods for [`CairoRunner`].
 //!
 //! Provides a simplified API for executing individual Cairo 0 functions by name or PC.
@@ -61,7 +60,13 @@ impl CairoRunner {
         args: &[CairoArg],
     ) -> Result<(), CairoRunError> {
         let mut hint_processor = BuiltinHintProcessor::new_empty();
-        self.run_from_entrypoint(EntryPoint::Name(entrypoint), args, false, None, &mut hint_processor)
+        self.run_from_entrypoint(
+            EntryPoint::Name(entrypoint),
+            args,
+            false,
+            None,
+            &mut hint_processor,
+        )
     }
 
     /// Resolves the entrypoint, builds the call stack, runs until the function's end PC,
@@ -83,7 +88,11 @@ impl CairoRunner {
             .iter()
             .map(|arg| self.vm.segments.gen_cairo_arg(arg))
             .collect::<Result<Vec<MaybeRelocatable>, VirtualMachineError>>()?;
-        let end = self.initialize_function_entrypoint(entrypoint_pc, stack, MaybeRelocatable::from(0_i64))?;
+        let end = self.initialize_function_entrypoint(
+            entrypoint_pc,
+            stack,
+            MaybeRelocatable::from(0_i64),
+        )?;
         self.initialize_vm()?;
         self.run_until_pc(end, hint_processor)
             .map_err(|err| VmException::from_vm_error(self, err))?;
@@ -123,7 +132,10 @@ impl CairoRunner {
                 self.get_pc_from_identifier(dest_id)
             }
             v => Err(ProgramError::InvalidIdentifierTypeForPc(
-                identifier.full_name.clone().unwrap_or_else(|| "<unknown>".to_string()),
+                identifier
+                    .full_name
+                    .clone()
+                    .unwrap_or_else(|| "<unknown>".to_string()),
                 v.unwrap_or("<unknown>").to_string(),
             )
             .into()),
@@ -173,7 +185,9 @@ mod tests {
         for builtin in expected_builtins {
             assert!(runner.get_builtin_base(builtin).is_some());
         }
-        assert!(runner.get_builtin_base(BuiltinName::segment_arena).is_none());
+        assert!(runner
+            .get_builtin_base(BuiltinName::segment_arena)
+            .is_none());
         assert_eq!(runner.vm.segments.num_segments(), 11 + 2);
     }
 
@@ -182,7 +196,8 @@ mod tests {
         let program = load_program(include_bytes!(
             "../../../../cairo_programs/example_program.json"
         ));
-        let runner = CairoRunner::new(&program, LayoutName::plain, None, false, false, false).unwrap();
+        let runner =
+            CairoRunner::new(&program, LayoutName::plain, None, false, false, false).unwrap();
 
         assert!(runner.get_builtin_base(BuiltinName::range_check).is_none());
         assert_eq!(runner.vm.segments.num_segments(), 0);
@@ -202,7 +217,13 @@ mod tests {
             CairoArg::from(range_check_ptr),
         ];
         assert_matches!(
-            runner.run_from_entrypoint(EntryPoint::Name("main"), &main_args, true, None, &mut hint_processor),
+            runner.run_from_entrypoint(
+                EntryPoint::Name("main"),
+                &main_args,
+                true,
+                None,
+                &mut hint_processor
+            ),
             Ok(())
         );
 
@@ -214,7 +235,13 @@ mod tests {
             CairoArg::from(range_check_ptr2),
         ];
         assert_matches!(
-            runner2.run_from_entrypoint(EntryPoint::Name("evaluate_fib"), &fib_args, true, None, &mut hint_processor2),
+            runner2.run_from_entrypoint(
+                EntryPoint::Name("evaluate_fib"),
+                &fib_args,
+                true,
+                None,
+                &mut hint_processor2
+            ),
             Ok(())
         );
     }
@@ -239,7 +266,13 @@ mod tests {
             .unwrap();
 
         assert_matches!(
-            runner.run_from_entrypoint(EntryPoint::Pc(entrypoint_pc), &args, true, None, &mut hint_processor),
+            runner.run_from_entrypoint(
+                EntryPoint::Pc(entrypoint_pc),
+                &args,
+                true,
+                None,
+                &mut hint_processor
+            ),
             Ok(())
         );
     }
@@ -268,7 +301,10 @@ mod tests {
         let runner = CairoRunner::new_for_testing(&program).unwrap();
 
         let pc = runner.get_function_pc("assert_nn").unwrap();
-        assert_eq!(pc, 0, "assert_nn is an alias to starkware.cairo.common.math.assert_nn which has pc 0");
+        assert_eq!(
+            pc, 0,
+            "assert_nn is an alias to starkware.cairo.common.math.assert_nn which has pc 0"
+        );
     }
 
     #[test]
@@ -278,8 +314,13 @@ mod tests {
         ));
         let runner = CairoRunner::new_for_testing(&program).unwrap();
 
-        let pc = runner.get_function_pc("assert_nn_manual_implementation").unwrap();
-        assert_eq!(pc, 4, "assert_nn_manual_implementation is a function with pc 4");
+        let pc = runner
+            .get_function_pc("assert_nn_manual_implementation")
+            .unwrap();
+        assert_eq!(
+            pc, 4,
+            "assert_nn_manual_implementation is a function with pc 4"
+        );
     }
 
     #[test]
@@ -319,7 +360,13 @@ mod tests {
         let bitwise_ptr = runner.get_builtin_base(BuiltinName::bitwise).unwrap();
 
         assert!(runner
-            .run_from_entrypoint(EntryPoint::Name("main"), &[CairoArg::from(bitwise_ptr)], true, None, &mut hint_processor)
+            .run_from_entrypoint(
+                EntryPoint::Name("main"),
+                &[CairoArg::from(bitwise_ptr)],
+                true,
+                None,
+                &mut hint_processor
+            )
             .is_ok());
         assert_eq!(runner.get_memory_holes().unwrap(), 0);
     }
@@ -331,7 +378,13 @@ mod tests {
         ));
         let mut runner = CairoRunner::new_for_testing(&program).unwrap();
         let mut hint_processor = BuiltinHintProcessor::new_empty();
-        let result = runner.run_from_entrypoint(EntryPoint::Name("main"), &[], true, None, &mut hint_processor);
+        let result = runner.run_from_entrypoint(
+            EntryPoint::Name("main"),
+            &[],
+            true,
+            None,
+            &mut hint_processor,
+        );
 
         match result {
             Err(CairoRunError::VmException(exception)) => assert_eq!(
