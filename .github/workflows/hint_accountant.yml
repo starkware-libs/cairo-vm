@@ -26,7 +26,6 @@ jobs:
     - name: Update comment in tracking issue
       uses: peter-evans/create-or-update-comment@v4
       with:
-        issue-number: 1031
-        comment-id: 1518234161
+        issue-number: 2371
         body-path: comment.md
         edit-mode: replace
