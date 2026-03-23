@@ -103,10 +103,7 @@ macro_rules! impl_from_for_maybe_relocatable {
     };
 }
 
-impl_from_for_maybe_relocatable!(
-    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, BigUint, BigInt, &BigUint,
-    &BigInt
-);
+impl_from_for_maybe_relocatable!(u8, u32, u64, usize, i32, i64, BigUint, BigInt, &BigUint, &BigInt);
 
 impl Display for MaybeRelocatable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

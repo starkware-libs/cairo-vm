@@ -25,6 +25,7 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 * chore: Add `CairoFunctionRunner` for running Cairo entrypoints by name or PC, and broaden `CairoArg`/`MaybeRelocatable` conversions to support primitive signed/unsigned integers and big integers [#2352](https://github.com/lambdaclass/cairo-vm/pull/2352)
 
 * chore: Add unit tests for `CairoFunctionRunner`, `CairoArg` conversions/macros, and `MaybeRelocatable` conversion macro coverage [#2354](https://github.com/lambdaclass/cairo-vm/pull/2354)
+* chore: Add function-runner methods to `CairoRunner` (`new_for_testing`, `run_default_cairo0`, `get_builtin_base`, `run_from_entrypoint`) under the `test_utils` feature [#2359](https://github.com/starkware-libs/cairo-vm/pull/2359)
 
 #### [3.2.0] - 2026-3-3
 
