@@ -91,11 +91,8 @@ impl CairoRunner {
             .iter()
             .map(|arg| self.vm.segments.gen_cairo_arg(arg))
             .collect::<Result<Vec<MaybeRelocatable>, VirtualMachineError>>()?;
-        let end = self.initialize_function_entrypoint(
-            entrypoint_pc,
-            stack,
-            MaybeRelocatable::from(0),
-        )?;
+        let end =
+            self.initialize_function_entrypoint(entrypoint_pc, stack, MaybeRelocatable::from(0))?;
         self.initialize_vm()?;
         self.run_until_pc(end, hint_processor)
             .map_err(|err| VmException::from_vm_error(self, err))?;
@@ -374,6 +371,26 @@ mod tests {
             )
             .is_ok());
         assert_eq!(runner.get_memory_holes().unwrap(), 0);
+    }
+
+    #[test]
+    fn get_pc_from_identifier_happy_flow_function_with_pc_100() {
+        let program = load_program(include_bytes!(
+            "../../../../cairo_programs/example_program.json"
+        ));
+        let runner = CairoRunner::new_for_testing(&program).unwrap();
+
+        let identifier = Identifier {
+            type_: Some("function".to_string()),
+            pc: Some(100),
+            full_name: Some("test_func".to_string()),
+            value: None,
+            members: None,
+            cairo_type: None,
+            size: None,
+            destination: None,
+        };
+        assert_eq!(runner.get_pc_from_identifier(&identifier).unwrap(), 100);
     }
 
     #[test]
