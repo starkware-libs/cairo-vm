@@ -1,16 +1,22 @@
+# .codecov.yml
+
 # ignore:
   # - "crates/**/*test*.rs"
-coverage:
-  status:
-    project:
-      default:
-        target: auto # set the target coverage to the value of the parent commit
-        threshold: 10% # pct of drop in coverage that is still considered as success
-        informational: true # if true does not fail the CI is coverage is bellow the target value
-        only_pulls: true # run only on PRs
-    patch:
-      default:
-        target: 100%
-        threshold: 0%
-        informational: true
-        only_pulls: true
+  coverage:
+    status:
+      project:
+        default:
+          target: auto # Compares coverage against the base branch (e.g., main)
+          threshold: 1% # Decreased from 10%. A 1% drop threshold is safer.
+          informational: false # CHANGE: Must be false to actually fail the CI
+          only_pulls: true # Runs only on PRs
+      patch:
+        default:
+          target: 80% # Require 80% coverage on new lines (100% can be too strict)
+          threshold: 0% 
+          informational: false # CHANGE: Must be false to enforce patch coverage
+          only_pulls: true
+  
+  comment:
+    layout: "reach, diff, flags, files"
+    behavior: default # Adds a helpful coverage report comment directly in your PR
