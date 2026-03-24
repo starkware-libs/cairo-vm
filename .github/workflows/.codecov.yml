@@ -1,0 +1,16 @@
+# ignore:
+  # - "crates/**/*test*.rs"
+coverage:
+  status:
+    project:
+      default:
+        target: auto # set the target coverage to the value of the parent commit
+        threshold: 10% # pct of drop in coverage that is still considered as success
+        informational: true # if true does not fail the CI is coverage is bellow the target value
+        only_pulls: true # run only on PRs
+    patch:
+      default:
+        target: 100%
+        threshold: 0%
+        informational: true
+        only_pulls: true
