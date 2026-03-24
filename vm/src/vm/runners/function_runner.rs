@@ -158,6 +158,7 @@ mod tests {
     use crate::vm::runners::cairo_runner::CairoArg;
     use crate::vm::runners::function_runner::EntryPoint;
     use assert_matches::assert_matches;
+    use std::sync::Arc;
 
     fn load_program(program_bytes: &[u8]) -> Program {
         Program::from_bytes(program_bytes, None).unwrap()
@@ -413,6 +414,43 @@ mod tests {
         assert_matches!(
             runner.get_pc_from_identifier(&identifier),
             Err(CairoRunError::Runner(RunnerError::NoPC))
+        );
+    }
+
+    #[test]
+    fn get_pc_from_identifier_happy_flow_alias_resolves_to_pc() {
+        let program = load_program(include_bytes!(
+            "../../../../cairo_programs/example_program.json"
+        ));
+        let mut runner = CairoRunner::new_for_testing(&program).unwrap();
+
+        let dest_identifier = Identifier {
+            type_: Some("function".to_string()),
+            pc: Some(50),
+            full_name: Some("my_func".to_string()),
+            value: None,
+            members: None,
+            cairo_type: None,
+            size: None,
+            destination: None,
+        };
+        Arc::make_mut(&mut runner.program.shared_program_data)
+            .identifiers
+            .insert("my_func".to_string(), dest_identifier);
+
+        let alias_identifier = Identifier {
+            type_: Some("alias".to_string()),
+            destination: Some("my_func".to_string()),
+            full_name: Some("my_alias".to_string()),
+            pc: None,
+            value: None,
+            members: None,
+            cairo_type: None,
+            size: None,
+        };
+        assert_eq!(
+            runner.get_pc_from_identifier(&alias_identifier).unwrap(),
+            50
         );
     }
 
