@@ -213,7 +213,7 @@ Currently, as this VM is under construction, it's missing some of the features o
 There are two ways to use non-standard hints in this VM:
 
 - Extend the cairo-vm code and build your own binary using the interface [HintProcessor](docs/hint_processor/README.md).
-- Use [cairo-vm-py](https://github.com/starkware-libs/cairo-vm-py) which supports running any hint in a Python interpreter.
+
 
 ### Running a function in a Cairo program with arguments
 
@@ -348,7 +348,7 @@ You can find more detailed instructions in the [CONTRIBUTING.md](CONTRIBUTING.md
 ## 🌞 Related Projects
 
 - [starknet_in_rust](https://github.com/lambdaclass/starknet_in_rust): implementation of Starknet in Rust, powered by the cairo-vm.
-- [cairo-vm-py](https://github.com/starkware-libs/cairo-vm-py): Bindings for using cairo-vm from Python code.
+
 
 ## 📚 Documentation
 
