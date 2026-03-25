@@ -16,7 +16,7 @@ cairo-vm =  {path = "[path to cairo-vm directory"}
 Or by github link:
 ```rust
 [dependencies]
-cairo-vm =  {git = "https://github.com/lambdaclass/cairo-vm.git"}
+cairo-vm =  {git = "https://github.com/starkware-libs/cairo-vm.git"}
 ```
 
 #### Step 2: Code the implementation of your custom hint (Using the helpers and structures described in the sections below)

@@ -9,7 +9,7 @@ use crate::vm::errors::{
 };
 // In case you need to add a CairoRunError enum variant
 // Add it with #[error(transparent)]
-// If not it can cause some performance regressions, like in https://github.com/lambdaclass/cairo-vm/pull/1720
+// If not it can cause some performance regressions, like in https://github.com/starkware-libs/cairo-vm/pull/1720
 #[derive(Debug, Error)]
 pub enum CairoRunError {
     #[error(transparent)]
