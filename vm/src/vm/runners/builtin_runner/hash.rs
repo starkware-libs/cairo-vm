@@ -78,10 +78,9 @@ impl HashBuiltinRunner {
             segment_index: address.segment_index,
             offset: address.offset - 2,
         }));
-        if let (Some(MaybeRelocatable::Int(num_a)), Some(MaybeRelocatable::Int(num_b))) = (
-            num_a.as_ref().map(|x| x.as_ref()),
-            num_b.as_ref().map(|x| x.as_ref()),
-        ) {
+        if let (Some(MaybeRelocatable::Int(num_a)), Some(MaybeRelocatable::Int(num_b))) =
+            (num_a, num_b)
+        {
             if self.verified_addresses.borrow().len() <= address.offset {
                 self.verified_addresses
                     .borrow_mut()
@@ -89,7 +88,7 @@ impl HashBuiltinRunner {
             }
             self.verified_addresses.borrow_mut()[address.offset] = true;
             //Compute pedersen Hash
-            let result = starknet_types_core::hash::Pedersen::hash(num_b, num_a);
+            let result = starknet_types_core::hash::Pedersen::hash(&num_b, &num_a);
             return Ok(Some(MaybeRelocatable::from(result)));
         }
         Ok(None)

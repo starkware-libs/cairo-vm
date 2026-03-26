@@ -125,15 +125,13 @@ impl EcOpBuiltinRunner {
         for i in 0..INPUT_CELLS_PER_EC_OP as usize {
             match memory.get(&(instance + i)?) {
                 None => return Ok(None),
-                Some(addr) => {
-                    input_cells.push(match addr.as_ref() {
-                        MaybeRelocatable::Int(num) => *num,
-                        _ => {
-                            return Err(RunnerError::Memory(MemoryError::ExpectedInteger(
-                                Box::new((instance + i)?),
-                            )))
-                        }
-                    });
+                Some(MaybeRelocatable::Int(num)) => {
+                    input_cells.push(num);
+                }
+                Some(_) => {
+                    return Err(RunnerError::Memory(MemoryError::ExpectedInteger(Box::new(
+                        (instance + i)?,
+                    ))))
                 }
             };
         }
