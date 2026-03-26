@@ -10,7 +10,9 @@ use crate::test_helpers::error_utils::{
     expect_non_le_felt252, expect_ok, expect_split_int_limb_out_of_range,
     expect_split_int_not_zero, VmCheck,
 };
+use crate::assert_mr_eq;
 use crate::cairo_args;
+use crate::load_cairo_program;
 use crate::types::builtin_name::BuiltinName;
 use crate::types::program::Program;
 use crate::types::relocatable::MaybeRelocatable;
@@ -57,7 +59,7 @@ static INTERESTING_FELTS: LazyLock<Vec<BigUint>> = LazyLock::new(|| {
 /// Creates a fresh CairoFunctionRunner from the shared PROGRAM.
 #[fixture]
 fn runner() -> CairoFunctionRunner {
-    CairoFunctionRunner::new(&PROGRAM).unwrap()
+    CairoFunctionRunner::new_for_testing(&PROGRAM).unwrap()
 }
 
 // ===================== test_assert_not_zero =====================
@@ -186,7 +188,7 @@ fn test_assert_250_bit(
 
     // If successful, verify the return value
     if res.is_ok() {
-        let ret = runner.get_return_values(1).unwrap();
+        let ret = runner.vm.get_return_values(1).unwrap();
         assert_mr_eq!(&ret[0], &rc_base.add_usize(3usize).unwrap());
     }
 }
@@ -258,7 +260,7 @@ fn test_split_felt(mut runner: CairoFunctionRunner, #[case] idx: usize) {
         .run_default_cairo0("split_felt", &args)
         .unwrap_or_else(|e| panic!("split_felt failed for value {value}: {e}"));
 
-    let ret = runner.get_return_values(3).unwrap();
+    let ret = runner.vm.get_return_values(3).unwrap();
     // ret = [range_check_ptr, high, low]
     assert_mr_eq!(
         &ret[0],
@@ -290,7 +292,7 @@ fn test_assert_le_felt(
         runner
             .run_default_cairo0("assert_le_felt", &args)
             .unwrap_or_else(|e| panic!("assert_le_felt failed for {value0} <= {value1}: {e}"));
-        let ret = runner.get_return_values(1).unwrap();
+        let ret = runner.vm.get_return_values(1).unwrap();
         assert_mr_eq!(
             &ret[0],
             &rc_base.add_usize(4usize).unwrap(),
@@ -323,7 +325,7 @@ fn test_assert_lt_felt(
         runner
             .run_default_cairo0("assert_lt_felt", &args)
             .unwrap_or_else(|e| panic!("assert_lt_felt failed for {value0} < {value1}: {e}"));
-        let ret = runner.get_return_values(1).unwrap();
+        let ret = runner.vm.get_return_values(1).unwrap();
         assert_mr_eq!(
             &ret[0],
             &rc_base.add_usize(4usize).unwrap(),
@@ -373,7 +375,7 @@ fn test_abs_value(
     check(&result);
     let abs_value = value_case.magnitude();
     if abs_value < &rc_bound_biguint {
-        let ret = runner.get_return_values(2).unwrap();
+        let ret = runner.vm.get_return_values(2).unwrap();
         assert_mr_eq!(&ret[0], &rc_base.add_usize(1usize).unwrap());
         assert_mr_eq!(&ret[1], abs_value);
     }
@@ -416,7 +418,7 @@ fn test_sign(
     check(&result);
     let abs_value = value_case.magnitude();
     if abs_value < &rc_bound_biguint {
-        let ret = runner.get_return_values(2).unwrap();
+        let ret = runner.vm.get_return_values(2).unwrap();
         // range_check_ptr == rc_base + (1 if value != 0 else 0)
         let expected_rc_ptr = if value_case.is_zero() {
             rc_base
@@ -547,7 +549,7 @@ fn test_unsigned_div_rem(
 
     // If successful, verify the results match expected values
     if result.is_ok() {
-        let ret = runner.get_return_values(3).unwrap();
+        let ret = runner.vm.get_return_values(3).unwrap();
         assert_mr_eq!(
             &ret[0],
             &rc_base.add_usize(3usize).unwrap(),
@@ -700,7 +702,7 @@ fn test_signed_div_rem(
     check(&result);
 
     if result.is_ok() {
-        let ret = runner.get_return_values(3).unwrap();
+        let ret = runner.vm.get_return_values(3).unwrap();
         let rc_ptr = &ret[0];
         let result_q = &ret[1];
         let result_r = &ret[2];
@@ -791,7 +793,7 @@ fn test_split_int(
     if result.is_ok() {
         let expected_output =
             expected_output.expect("expected_output must be set for success case");
-        let ret = runner.get_return_values(1).unwrap();
+        let ret = runner.vm.get_return_values(1).unwrap();
         assert_mr_eq!(&ret[0], &rc_base.add_usize(2usize * n as usize).unwrap());
 
         let range = runner.vm.get_range(output, n as usize);
@@ -880,7 +882,7 @@ fn test_sqrt(
     check(&result);
 
     if result.is_ok() {
-        let ret = runner.get_return_values(2).unwrap();
+        let ret = runner.vm.get_return_values(2).unwrap();
         assert_mr_eq!(
             &ret[0],
             &rc_base.add_usize(4usize).unwrap(),
@@ -922,7 +924,7 @@ fn test_horner_eval(mut runner: CairoFunctionRunner, #[case] n: usize) {
     let args = cairo_args!(n, coeff_mr, point.clone());
     runner.run_default_cairo0("horner_eval", &args).unwrap();
 
-    let ret = runner.get_return_values(1).unwrap();
+    let ret = runner.vm.get_return_values(1).unwrap();
 
     // Compute expected result: sum(coef * point^i for i, coef in enumerate(coefficients)) % PRIME
     let expected: BigUint = coefficients
@@ -954,7 +956,7 @@ fn test_is_quad_residue(mut runner: CairoFunctionRunner, #[case] x: Option<BigUi
     // Test is_quad_residue(x)
     let args = cairo_args!(x.clone());
     runner.run_default_cairo0("is_quad_residue", &args).unwrap();
-    let ret = runner.get_return_values(1).unwrap();
+    let ret = runner.vm.get_return_values(1).unwrap();
 
     let expected = is_quad_residue_mod_prime(&x);
     assert_mr_eq!(
@@ -965,13 +967,13 @@ fn test_is_quad_residue(mut runner: CairoFunctionRunner, #[case] x: Option<BigUi
 
     // Test is_quad_residue(3 * x)
     // 3 is not a quadratic residue modulo PRIME
-    let mut runner2 = CairoFunctionRunner::new(&PROGRAM).unwrap();
+    let mut runner2 = CairoFunctionRunner::new_for_testing(&PROGRAM).unwrap();
     let three_x = (BigUint::from(3u64) * &x) % prime;
     let args2 = cairo_args!(three_x);
     runner2
         .run_default_cairo0("is_quad_residue", &args2)
         .unwrap();
-    let ret2 = runner2.get_return_values(1).unwrap();
+    let ret2 = runner2.vm.get_return_values(1).unwrap();
 
     let expected2 = if x.is_zero() {
         1i64 // 3 * 0 = 0, which is QR
