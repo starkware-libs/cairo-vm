@@ -1,7 +1,7 @@
 //! Function runner extension methods for [`CairoRunner`].
 //!
 //! Provides a simplified API for executing individual Cairo 0 functions by name or PC.
-//! This entire module is compiled only when the `test_utils` feature is enabled.
+//! Enabled by the `function_runner` feature flag.
 
 use crate::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor;
 use crate::hint_processor::hint_processor_definition::HintProcessor;
@@ -18,8 +18,11 @@ use crate::vm::errors::vm_exception::VmException;
 use crate::vm::runners::cairo_runner::{CairoArg, CairoRunner, ORDERED_BUILTIN_LIST};
 use crate::vm::security::verify_secure_runner;
 
+/// Type alias for [`CairoRunner`] with testing methods enabled.
+/// Mirrors the Python `CairoFunctionRunner` class interface.
+pub type CairoFunctionRunner = CairoRunner;
+
 /// Identifies a Cairo function entrypoint either by function name or by program counter.
-#[allow(dead_code)]
 pub enum EntryPoint<'a> {
     Name(&'a str),
     Pc(usize),
@@ -75,7 +78,7 @@ impl CairoRunner {
     /// Resolves the entrypoint, builds the call stack, runs until the function's end PC,
     /// and optionally verifies security constraints.
     #[allow(clippy::result_large_err)]
-    pub(crate) fn run_from_entrypoint(
+    pub fn run_from_entrypoint(
         &mut self,
         entrypoint: EntryPoint<'_>,
         args: &[CairoArg],
@@ -106,7 +109,7 @@ impl CairoRunner {
 
     /// Resolves `__main__.<entrypoint>` to its PC, following alias chains.
     #[allow(clippy::result_large_err)]
-    pub(crate) fn get_function_pc(&self, entrypoint: &str) -> Result<usize, CairoRunError> {
+    pub fn get_function_pc(&self, entrypoint: &str) -> Result<usize, CairoRunError> {
         let full_name = format!("__main__.{entrypoint}");
         let identifier = self
             .program
