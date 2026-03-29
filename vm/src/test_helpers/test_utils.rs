@@ -56,6 +56,17 @@ macro_rules! assert_mr_eq {
 mod tests {
     use crate::types::relocatable::{MaybeRelocatable, Relocatable};
 
+    /// A type whose `TryInto<MaybeRelocatable>` always fails, used to exercise
+    /// the `unwrap_or_else` panic branch in `assert_mr_eq!`.
+    struct AlwaysFailConversion;
+
+    impl TryFrom<AlwaysFailConversion> for MaybeRelocatable {
+        type Error = &'static str;
+        fn try_from(_: AlwaysFailConversion) -> Result<Self, Self::Error> {
+            Err("intentional failure")
+        }
+    }
+
     /// `load_cairo_program!` successfully loads a compiled Cairo program from the same directory.
     ///
     /// The source `dummy.cairo` used to produce `dummy.json` is:
@@ -136,5 +147,21 @@ mod tests {
     fn assert_mr_eq_panics_relocatable_diff_offset() {
         let val = MaybeRelocatable::from(Relocatable::from((1, 0)));
         assert_mr_eq!(&val, Relocatable::from((1, 1)));
+    }
+
+    /// `assert_mr_eq!` (no-message variant) panics when `try_into` conversion fails.
+    #[test]
+    #[should_panic(expected = "conversion to MaybeRelocatable failed")]
+    fn assert_mr_eq_panics_on_conversion_failure() {
+        let val = MaybeRelocatable::from(42);
+        assert_mr_eq!(&val, AlwaysFailConversion);
+    }
+
+    /// `assert_mr_eq!` (message variant) panics when `try_into` conversion fails.
+    #[test]
+    #[should_panic(expected = "conversion to MaybeRelocatable failed")]
+    fn assert_mr_eq_with_message_panics_on_conversion_failure() {
+        let val = MaybeRelocatable::from(42);
+        assert_mr_eq!(&val, AlwaysFailConversion, "should not reach assert_eq");
     }
 }

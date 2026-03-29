@@ -182,6 +182,7 @@ mod tests {
     use super::*;
 
     /// Wraps a `HintError` in the full `CairoRunError::VmException` chain expected by the checkers.
+    #[allow(clippy::result_large_err)]
     fn hint_err(hint_error: HintError) -> std::result::Result<(), CairoRunError> {
         Err(CairoRunError::VmException(VmException {
             pc: Relocatable::from((0, 0)),
