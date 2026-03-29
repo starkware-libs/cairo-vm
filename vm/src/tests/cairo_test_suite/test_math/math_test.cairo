@@ -2,7 +2,6 @@
 
 from starkware.cairo.common.math import (
     assert_not_zero,
-    assert_not_nullptr,
     assert_not_equal,
     assert_nn,
     assert_le,
