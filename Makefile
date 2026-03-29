@@ -21,7 +21,7 @@ UNAME := $(shell uname)
 	compare_trace_memory compare_trace compare_memory compare_pie compare_all_no_proof \
 	compare_trace_memory_proof  compare_all_proof compare_trace_proof compare_memory_proof compare_air_public_input  compare_air_private_input\
 	hyper-threading-benchmarks \
-	cairo_bench_programs cairo_proof_programs cairo_test_programs cairo_1_test_contracts cairo_2_test_contracts \
+	cairo_bench_programs cairo_proof_programs cairo_test_programs cairo_test_suite_programs cairo_1_test_contracts cairo_2_test_contracts \
 	cairo_trace cairo-vm_trace cairo_proof_trace cairo-vm_proof_trace python-deps python-deps-macos \
 	build-cairo-lang hint-accountant \ create-proof-programs-symlinks \
 	$(RELBIN) $(DBGBIN)
@@ -124,6 +124,10 @@ NORETROCOMPAT_DIR:=cairo_programs/noretrocompat
 NORETROCOMPAT_FILES:=$(wildcard $(NORETROCOMPAT_DIR)/*.cairo)
 COMPILED_NORETROCOMPAT_TESTS:=$(patsubst $(NORETROCOMPAT_DIR)/%.cairo, $(NORETROCOMPAT_DIR)/%.json, $(NORETROCOMPAT_FILES))
 
+CAIRO_TEST_SUITE_ROOT:=vm/src/tests/cairo_test_suite
+CAIRO_TEST_SUITE_FILES:=$(shell find $(CAIRO_TEST_SUITE_ROOT) -name "*.cairo")
+COMPILED_CAIRO_TEST_SUITE:=$(patsubst %.cairo,%.json,$(CAIRO_TEST_SUITE_FILES))
+
 $(BENCH_DIR)/%.json: $(BENCH_DIR)/%.cairo
 	cairo-compile --cairo_path="$(TEST_DIR):$(BENCH_DIR)" $< --output $@ --proof_mode
 
@@ -143,6 +147,9 @@ $(BAD_TEST_DIR)/%.json: $(BAD_TEST_DIR)/%.cairo
 	cairo-compile $< --output $@
 
 $(PRINT_TEST_DIR)/%.json: $(PRINT_TEST_DIR)/%.cairo
+	cairo-compile $< --output $@
+
+$(CAIRO_TEST_SUITE_ROOT)/%.json: $(CAIRO_TEST_SUITE_ROOT)/%.cairo
 	cairo-compile $< --output $@
 
 # ======================
@@ -268,6 +275,8 @@ run:
 check:
 	cargo check
 
+cairo_test_suite_programs: $(COMPILED_CAIRO_TEST_SUITE)
+
 cairo_test_programs: $(COMPILED_TESTS) $(COMPILED_BAD_TESTS) $(COMPILED_NORETROCOMPAT_TESTS) $(COMPILED_PRINT_TESTS) $(COMPILED_MOD_BUILTIN_TESTS) $(COMPILED_SECP_CAIRO0_HINTS) $(COMPILED_KZG_DA_CAIRO0_HINTS) $(COMPILED_SEGMENT_ARENA_CAIRO0_HINTS)
 cairo_proof_programs: $(COMPILED_PROOF_TESTS) $(COMPILED_MOD_BUILTIN_PROOF_TESTS) $(COMPILED_STWO_EXCLUSIVE_TESTS)
 cairo_bench_programs: $(COMPILED_BENCHES)
@@ -286,7 +295,7 @@ ifdef TEST_COLLECT_COVERAGE
 	TEST_COMMAND:=cargo llvm-cov nextest --no-report
 endif
 
-test: cairo_proof_programs cairo_test_programs cairo_1_test_contracts cairo_2_test_contracts cairo_1_program
+test: cairo_proof_programs cairo_test_programs cairo_test_suite_programs cairo_1_test_contracts cairo_2_test_contracts cairo_1_program
 	$(TEST_COMMAND) --workspace --features "test_utils, cairo-1-hints"
 test-extensive_hints: cairo_proof_programs cairo_test_programs cairo_1_test_contracts cairo_1_program cairo_2_test_contracts 
 	$(TEST_COMMAND) --workspace --features "test_utils, cairo-1-hints, cairo-0-secp-hints, cairo-0-data-availability-hints, extensive_hints"
