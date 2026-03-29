@@ -236,9 +236,12 @@ mod tests {
     /// `expect_diff_type_comparison` does not panic on `VirtualMachineError::DiffTypeComparison`.
     #[test]
     fn expect_diff_type_comparison_passes() {
-        let res = hint_err(HintError::Internal(VirtualMachineError::DiffTypeComparison(
-            Box::new((MaybeRelocatable::from(0), MaybeRelocatable::from((0, 0)))),
-        )));
+        let res = hint_err(HintError::Internal(
+            VirtualMachineError::DiffTypeComparison(Box::new((
+                MaybeRelocatable::from(0),
+                MaybeRelocatable::from((0, 0)),
+            ))),
+        ));
         expect_diff_type_comparison(&res);
     }
 
