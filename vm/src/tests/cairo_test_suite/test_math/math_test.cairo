@@ -19,7 +19,9 @@ from starkware.cairo.common.math import (
     split_int,
     sqrt,
     is_quad_residue,
+
 )
+from starkware.cairo.common.math_utils import horner_eval
 
 func main{range_check_ptr}() {
     return ();

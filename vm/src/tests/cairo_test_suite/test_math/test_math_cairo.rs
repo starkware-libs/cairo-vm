@@ -27,7 +27,7 @@ use rstest::{fixture, rstest};
 // ===================== Shared constants (LazyLock) =====================
 
 /// The compiled Cairo math program, loaded once and shared across all tests.
-static PROGRAM: LazyLock<Program> = LazyLock::new(|| load_cairo_program!("main_math_test.json"));
+static PROGRAM: LazyLock<Program> = LazyLock::new(|| load_cairo_program!("math_test.json"));
 
 /// Interesting felt values used in several tests.
 static INTERESTING_FELTS: LazyLock<Vec<BigUint>> = LazyLock::new(|| {
