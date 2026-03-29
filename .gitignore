@@ -4,6 +4,7 @@
 **/*.json
 !hint_accountant/whitelists/*.json
 !cairo_programs/manually_compiled/*.json
+!vm/src/test_helpers/dummy.json
 **/*.casm
 **/*.sierra
 **/*.trace

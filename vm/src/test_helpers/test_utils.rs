@@ -51,3 +51,90 @@ macro_rules! assert_mr_eq {
         assert_eq!($left, &right_mr, $($arg)+);
     }};
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::types::relocatable::{MaybeRelocatable, Relocatable};
+
+    /// `load_cairo_program!` successfully loads a compiled Cairo program from the same directory.
+    ///
+    /// The source `dummy.cairo` used to produce `dummy.json` is:
+    /// ```cairo
+    /// func main() {
+    ///     return ();
+    /// }
+    /// ```
+    #[test]
+    fn load_cairo_program_loads_dummy() {
+        let program = load_cairo_program!("dummy.json");
+        assert!(!program.shared_program_data.data.is_empty());
+    }
+
+    /// `load_cairo_program!` panics when the file does not exist.
+    #[test]
+    #[should_panic(expected = "Cairo program not found")]
+    fn load_cairo_program_panics_on_missing_file() {
+        load_cairo_program!("nonexistent.json");
+    }
+
+    /// `assert_mr_eq!` passes when an integer `MaybeRelocatable` equals the given felt value.
+    #[test]
+    fn assert_mr_eq_int_passes() {
+        let val = MaybeRelocatable::from(42);
+        assert_mr_eq!(&val, 42);
+    }
+
+    /// `assert_mr_eq!` passes when a relocatable `MaybeRelocatable` equals the given pair.
+    #[test]
+    fn assert_mr_eq_relocatable_passes() {
+        let val = MaybeRelocatable::from(Relocatable::from((1, 5)));
+        assert_mr_eq!(&val, Relocatable::from((1, 5)));
+    }
+
+    /// `assert_mr_eq!` passes with a custom message format.
+    #[test]
+    fn assert_mr_eq_with_message_passes() {
+        let val = MaybeRelocatable::from(7);
+        assert_mr_eq!(&val, 7, "value at index {} should be 7", 0);
+    }
+
+    /// `assert_mr_eq!` panics when values differ.
+    #[test]
+    #[should_panic]
+    fn assert_mr_eq_panics_on_mismatch() {
+        let val = MaybeRelocatable::from(1);
+        assert_mr_eq!(&val, 2);
+    }
+
+    /// `assert_mr_eq!` panics with a custom message when values differ.
+    #[test]
+    #[should_panic(expected = "wrong value")]
+    fn assert_mr_eq_with_message_panics_on_mismatch() {
+        let val = MaybeRelocatable::from(1);
+        assert_mr_eq!(&val, 2, "wrong value");
+    }
+
+    /// `assert_mr_eq!` panics when comparing a felt against a relocatable.
+    #[test]
+    #[should_panic]
+    fn assert_mr_eq_panics_felt_vs_relocatable() {
+        let val = MaybeRelocatable::from(1);
+        assert_mr_eq!(&val, Relocatable::from((0, 1)));
+    }
+
+    /// `assert_mr_eq!` panics when relocatables have the same offset but different segments.
+    #[test]
+    #[should_panic]
+    fn assert_mr_eq_panics_relocatable_diff_segment() {
+        let val = MaybeRelocatable::from(Relocatable::from((0, 5)));
+        assert_mr_eq!(&val, Relocatable::from((1, 5)));
+    }
+
+    /// `assert_mr_eq!` panics when relocatables have the same segment but different offsets.
+    #[test]
+    #[should_panic]
+    fn assert_mr_eq_panics_relocatable_diff_offset() {
+        let val = MaybeRelocatable::from(Relocatable::from((1, 0)));
+        assert_mr_eq!(&val, Relocatable::from((1, 1)));
+    }
+}
