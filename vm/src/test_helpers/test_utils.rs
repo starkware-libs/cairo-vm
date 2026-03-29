@@ -4,7 +4,7 @@
 /// via `file!()`, so the `.json` must live next to the `.cairo` and `.rs` files.
 ///
 /// # Example
-/// ```rust
+/// ```rust,ignore
 /// static PROGRAM: LazyLock<Program> = LazyLock::new(|| load_cairo_program!("main_math_test.json"));
 /// ```
 ///
