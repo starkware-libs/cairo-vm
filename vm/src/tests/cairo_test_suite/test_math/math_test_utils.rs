@@ -34,5 +34,4 @@ mod tests {
     fn is_quad_residue_mod_prime_returns_0_for_non_residue() {
         assert_eq!(is_quad_residue_mod_prime(&BigUint::from(3u32)), 0);
     }
-
 }

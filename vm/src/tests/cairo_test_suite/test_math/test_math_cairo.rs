@@ -3,6 +3,9 @@
 use std::sync::LazyLock;
 
 use super::math_test_utils::{is_quad_residue_mod_prime, MAX_DIV, RC_BOUND};
+use crate::assert_mr_eq;
+use crate::cairo_args;
+use crate::load_cairo_program;
 use crate::test_helpers::error_utils::{
     expect_assert_lt_felt252, expect_assert_not_equal_fail, expect_diff_index_comp,
     expect_diff_type_comparison, expect_hint_assert_not_zero, expect_hint_out_of_valid_range,
@@ -10,9 +13,6 @@ use crate::test_helpers::error_utils::{
     expect_non_le_felt252, expect_ok, expect_split_int_limb_out_of_range,
     expect_split_int_not_zero, VmCheck,
 };
-use crate::assert_mr_eq;
-use crate::cairo_args;
-use crate::load_cairo_program;
 use crate::types::builtin_name::BuiltinName;
 use crate::types::program::Program;
 use crate::types::relocatable::MaybeRelocatable;
@@ -739,14 +739,7 @@ fn test_signed_div_rem(
 )]
 // Case: value=0x1234FCDA, n=10, base=16, bound=15, expected_output=random
 // Expected: Error.
-#[case::out_of_bound_limb(
-    0x1234FCDA,
-    10,
-    16,
-    15,
-    None,
-    expect_split_int_limb_out_of_range
-)]
+#[case::out_of_bound_limb(0x1234FCDA, 10, 16, 15, None, expect_split_int_limb_out_of_range)]
 // Case: value=0xAAA, n=3, base=16, bound=11, expected_output=vec![0xA, 0xA, 0xA]
 // Expected: Success.
 #[case::exact_fit(
@@ -759,14 +752,7 @@ fn test_signed_div_rem(
 )]
 // Case: value=0xAAA, n=3, base=16, bound=10, expected_output=random
 // Expected: Error.
-#[case::bound_too_small(
-    0xAAA,
-    3,
-    16,
-    10,
-    None,
-    expect_split_int_limb_out_of_range
-)]
+#[case::bound_too_small(0xAAA, 3, 16, 10, None, expect_split_int_limb_out_of_range)]
 // Case: value=0xAAA, n=2, base=16, bound=16, expected_output=random
 // Expected: Error.
 #[case::value_out_of_range(0xAAA, 2, 16, 16, None, expect_split_int_not_zero)]
