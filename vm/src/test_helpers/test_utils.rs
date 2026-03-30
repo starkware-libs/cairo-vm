@@ -23,15 +23,18 @@ macro_rules! load_cairo_program {
             .join(file!())
             .with_file_name($name);
 
-        let bytes = std::fs::read(&json_path).unwrap_or_else(|err| {
-            panic!(
+        let bytes = match std::fs::read(&json_path) {
+            Ok(b) => b,
+            Err(err) => panic!(
                 "Cairo program not found at {json_path:?}: {err}\n\
                  Did you run `make cairo_test_suite_programs`?"
-            )
-        });
+            ),
+        };
 
-        $crate::types::program::Program::from_bytes(&bytes, None)
-            .unwrap_or_else(|e| panic!("Failed to parse Cairo program at {json_path:?}: {e}"))
+        match $crate::types::program::Program::from_bytes(&bytes, None) {
+            Ok(p) => p,
+            Err(e) => panic!("Failed to parse Cairo program at {json_path:?}: {e}"),
+        }
     }};
 }
 
@@ -39,15 +42,17 @@ macro_rules! load_cairo_program {
 #[macro_export]
 macro_rules! assert_mr_eq {
     ($left:expr, $right:expr) => {{
-        let right_mr = ($right)
-            .try_into()
-            .unwrap_or_else(|e| panic!("conversion to MaybeRelocatable failed: {e:?}"));
+        let right_mr = match ($right).try_into() {
+            Ok(v) => v,
+            Err(e) => panic!("conversion to MaybeRelocatable failed: {e:?}"),
+        };
         assert_eq!($left, &right_mr);
     }};
     ($left:expr, $right:expr, $($arg:tt)+) => {{
-        let right_mr = ($right)
-            .try_into()
-            .unwrap_or_else(|e| panic!("conversion to MaybeRelocatable failed: {e:?}"));
+        let right_mr = match ($right).try_into() {
+            Ok(v) => v,
+            Err(e) => panic!("conversion to MaybeRelocatable failed: {e:?}"),
+        };
         assert_eq!($left, &right_mr, $($arg)+);
     }};
 }
