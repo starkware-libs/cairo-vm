@@ -12,7 +12,7 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 
 #### Upcoming Changes
 
-* refactor: add `function_runner` feature flag and `CairoFunctionRunner` type alias for `CairoRunner` [#2377](https://github.com/starkware-libs/cairo-vm/pull/2377)
+* refactor: add `CairoFunctionRunner` type alias for `CairoRunner` under the `test_utils` feature flag [#2377](https://github.com/starkware-libs/cairo-vm/pull/2377)
 
 * Add Stwo cairo runner API [#2351](https://github.com/lambdaclass/cairo-vm/pull/2351)
 
