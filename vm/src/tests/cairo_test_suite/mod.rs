@@ -1,2 +1,2 @@
-#[cfg(feature = "function_runner")]
+#[cfg(feature = "test_utils")]
 mod test_math;

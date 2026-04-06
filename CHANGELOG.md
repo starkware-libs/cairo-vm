@@ -13,11 +13,9 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 #### Upcoming Changes
 
 * refactor: add `CairoFunctionRunner` type alias for `CairoRunner` under the `test_utils` feature flag [#2377](https://github.com/starkware-libs/cairo-vm/pull/2377)
-* refactor: add `function_runner` feature flag and `CairoFunctionRunner` type alias for `CairoRunner` [#2377](https://github.com/starkware-libs/cairo-vm/pull/2377)
 * feat: add `test_helpers` module (`error_utils`, `test_utils`) with `assert_mr_eq!`, `load_cairo_program!` macros and `expect_*` error checkers, behind `test_utils` feature flag [#2378](https://github.com/starkware-libs/cairo-vm/pull/2378)
-* feat: add `test_helpers` module (`error_utils`, `test_utils`) with `assert_mr_eq!`, `load_cairo_program!` macros and `expect_*` error checkers, behind `function_runner` feature flag [#2378](https://github.com/starkware-libs/cairo-vm/pull/2378)
 * feat(makefile,ci): add `cairo_test_suite_programs` Makefile target and CI integration to compile Cairo test suite programs before running tests [#2380](https://github.com/starkware-libs/cairo-vm/pull/2380)
-* feat: add math Cairo test suite under `vm/src/tests/cairo_test_suite` using the `function_runner` feature flag [#2379](https://github.com/starkware-libs/cairo-vm/pull/2379)
+* feat: add math Cairo test suite under `vm/src/tests/cairo_test_suite` using the `test_utils` feature flag [#2379](https://github.com/starkware-libs/cairo-vm/pull/2379)
 
 * Add Stwo cairo runner API [#2351](https://github.com/lambdaclass/cairo-vm/pull/2351)
 

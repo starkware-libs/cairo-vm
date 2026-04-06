@@ -36,7 +36,7 @@ mod cairo_pie_test;
 #[cfg(feature = "test_utils")]
 mod skip_instruction_test;
 
-#[cfg(feature = "function_runner")]
+#[cfg(feature = "test_utils")]
 mod cairo_test_suite;
 
 //For simple programs that should just succeed and have no special needs.
