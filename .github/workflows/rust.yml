@@ -337,7 +337,7 @@ jobs:
         export PARTITION=${MATRIX_TARGET#*#}
         cargo llvm-cov nextest --lcov --output-path lcov-${{ matrix.target }}-${{ matrix.special_features }}.info \
             --partition count:${PARTITION}/4 \
-            --workspace --features "cairo-1-hints, test_utils, function_runner, ${{ matrix.special_features }}"
+            --workspace --features "cairo-1-hints, test_utils, ${{ matrix.special_features }}"
 
     - name: Save coverage
       uses: actions/cache/save@v3
