@@ -17,7 +17,7 @@ use crate::types::builtin_name::BuiltinName;
 use crate::types::program::Program;
 use crate::types::relocatable::MaybeRelocatable;
 use crate::utils::CAIRO_PRIME;
-use crate::vm::runners::function_runner::CairoFunctionRunner;
+use crate::vm::runners::cairo_runner::CairoRunner;
 use crate::Felt252;
 use num_bigint::{BigInt, BigUint, RandBigInt};
 use num_traits::{One, Signed, Zero};
@@ -56,10 +56,10 @@ static INTERESTING_FELTS: LazyLock<Vec<BigUint>> = LazyLock::new(|| {
 
 // ===================== Fixture =====================
 
-/// Creates a fresh CairoFunctionRunner from the shared PROGRAM.
+/// Creates a fresh CairoRunner from the shared PROGRAM.
 #[fixture]
-fn runner() -> CairoFunctionRunner {
-    CairoFunctionRunner::new_for_testing(&PROGRAM).unwrap()
+fn runner() -> CairoRunner {
+    CairoRunner::new_for_testing(&PROGRAM).unwrap()
 }
 
 // ===================== test_assert_not_zero =====================
@@ -174,7 +174,7 @@ fn test_assert_not_equal(
 // Expected: Error.
 #[case::near_prime(&*CAIRO_PRIME - BigUint::one(), expect_hint_value_outside_250_bit_range)]
 fn test_assert_250_bit(
-    mut runner: CairoFunctionRunner,
+    mut runner: CairoRunner,
     #[case] value: BigUint,
     #[case] check: VmCheck<()>,
 ) {
@@ -244,7 +244,7 @@ fn test_assert_250_bit(
 // Case: idx=15
 // Expected: Success.
 #[case::idx_15(15)]
-fn test_split_felt(mut runner: CairoFunctionRunner, #[case] idx: usize) {
+fn test_split_felt(mut runner: CairoRunner, #[case] idx: usize) {
     let mask_128 = BigUint::from(2u64).pow(128) - BigUint::one();
     let value = &INTERESTING_FELTS[idx];
 
@@ -275,7 +275,7 @@ fn test_split_felt(mut runner: CairoFunctionRunner, #[case] idx: usize) {
 
 #[rstest]
 fn test_assert_le_felt(
-    mut runner: CairoFunctionRunner,
+    mut runner: CairoRunner,
     #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] idx0: usize,
     #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] idx1: usize,
 ) {
@@ -308,7 +308,7 @@ fn test_assert_le_felt(
 
 #[rstest]
 fn test_assert_lt_felt(
-    mut runner: CairoFunctionRunner,
+    mut runner: CairoRunner,
     #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] idx0: usize,
     #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] idx1: usize,
 ) {
@@ -356,7 +356,7 @@ fn test_assert_lt_felt(
 // Expected: Error.
 #[case(-BigInt::from(RC_BOUND.clone()), expect_hint_value_outside_valid_range)]
 fn test_abs_value(
-    mut runner: CairoFunctionRunner,
+    mut runner: CairoRunner,
     #[case] value_case: BigInt,
     #[case] check: VmCheck<()>,
 ) {
@@ -399,7 +399,7 @@ fn test_abs_value(
 // Expected: Error.
 #[case(-BigInt::from(RC_BOUND.clone()), expect_hint_value_outside_valid_range)]
 fn test_sign(
-    mut runner: CairoFunctionRunner,
+    mut runner: CairoRunner,
     #[case] value_case: BigInt,
     #[case] check: VmCheck<()>,
 ) {
@@ -501,7 +501,7 @@ fn test_sign(
     expect_hint_out_of_valid_range
 )]
 fn test_unsigned_div_rem(
-    mut runner: CairoFunctionRunner,
+    mut runner: CairoRunner,
     #[case] q: Option<BigUint>,
     #[case] div: Option<BigUint>,
     #[case] r: Option<BigUint>,
@@ -644,7 +644,7 @@ fn test_unsigned_div_rem(
     expect_hint_out_of_valid_range
 )]
 fn test_signed_div_rem(
-    mut runner: CairoFunctionRunner,
+    mut runner: CairoRunner,
     #[case] q: Option<BigInt>,
     #[case] div: Option<BigUint>,
     #[case] r: Option<BigUint>,
@@ -757,7 +757,7 @@ fn test_signed_div_rem(
 // Expected: Error.
 #[case::value_out_of_range(0xAAA, 2, 16, 16, None, expect_split_int_not_zero)]
 fn test_split_int(
-    mut runner: CairoFunctionRunner,
+    mut runner: CairoRunner,
     #[case] value: i64,
     #[case] n: i64,
     #[case] base: i64,
@@ -849,7 +849,7 @@ fn test_split_int(
     expect_hint_value_outside_250_bit_range
 )]
 fn test_sqrt(
-    mut runner: CairoFunctionRunner,
+    mut runner: CairoRunner,
     #[case] value: Option<BigUint>,
     #[case] check: VmCheck<()>,
 ) {
@@ -893,7 +893,7 @@ fn test_sqrt(
 // Case: n=16
 // Expected: Success.
 #[case::sixteen_coefficients(16)]
-fn test_horner_eval(mut runner: CairoFunctionRunner, #[case] n: usize) {
+fn test_horner_eval(mut runner: CairoRunner, #[case] n: usize) {
     let mut rng = thread_rng();
     let prime = &*CAIRO_PRIME;
 
@@ -931,7 +931,7 @@ fn test_horner_eval(mut runner: CairoFunctionRunner, #[case] n: usize) {
 // Case: x=random
 // Expected: Success.
 #[case::random(None)]
-fn test_is_quad_residue(mut runner: CairoFunctionRunner, #[case] x: Option<BigUint>) {
+fn test_is_quad_residue(mut runner: CairoRunner, #[case] x: Option<BigUint>) {
     let prime = &*CAIRO_PRIME;
 
     let x = x.unwrap_or_else(|| {
@@ -953,7 +953,7 @@ fn test_is_quad_residue(mut runner: CairoFunctionRunner, #[case] x: Option<BigUi
 
     // Test is_quad_residue(3 * x)
     // 3 is not a quadratic residue modulo PRIME
-    let mut runner2 = CairoFunctionRunner::new_for_testing(&PROGRAM).unwrap();
+    let mut runner2 = CairoRunner::new_for_testing(&PROGRAM).unwrap();
     let three_x = (BigUint::from(3u64) * &x) % prime;
     let args2 = cairo_args!(three_x);
     runner2
