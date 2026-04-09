@@ -60,10 +60,7 @@ fn expect_vm_error(
 }
 
 /// Asserts that the result is a `HintError` satisfying `predicate`.
-fn expect_hint_error(
-    res: &Result<(), CairoRunError>,
-    predicate: impl Fn(&HintError) -> bool,
-) {
+fn expect_hint_error(res: &Result<(), CairoRunError>, predicate: impl Fn(&HintError) -> bool) {
     assert_vm_result!(
         res,
         err CairoRunError::VmException(VmException {
@@ -85,7 +82,9 @@ pub fn expect_assert_not_equal_fail(res: &Result<(), CairoRunError>) {
 
 /// Asserts that the result is `VirtualMachineError::DiffTypeComparison`.
 pub fn expect_diff_type_comparison(res: &Result<(), CairoRunError>) {
-    expect_vm_error(res, |e| matches!(e, VirtualMachineError::DiffTypeComparison(_)));
+    expect_vm_error(res, |e| {
+        matches!(e, VirtualMachineError::DiffTypeComparison(_))
+    });
 }
 
 /// Asserts that the result is `VirtualMachineError::DiffIndexComp`.
@@ -210,13 +209,22 @@ mod tests {
             MaybeRelocatable::from((0, 0)),
         ))))
     )]
-    #[case::diff_index_comp(expect_diff_index_comp, vm_err(VirtualMachineError::DiffIndexComp(Box::default())))]
+    #[case::diff_index_comp(
+        expect_diff_index_comp,
+        vm_err(VirtualMachineError::DiffIndexComp(Box::default()))
+    )]
     #[case::hint_value_outside_250_bit_range(
         expect_hint_value_outside_250_bit_range,
         hint_err(HintError::ValueOutside250BitRange(Box::default()))
     )]
-    #[case::non_le_felt252(expect_non_le_felt252, hint_err(HintError::NonLeFelt252(Box::default())))]
-    #[case::assert_lt_felt252(expect_assert_lt_felt252, hint_err(HintError::AssertLtFelt252(Box::default())))]
+    #[case::non_le_felt252(
+        expect_non_le_felt252,
+        hint_err(HintError::NonLeFelt252(Box::default()))
+    )]
+    #[case::assert_lt_felt252(
+        expect_assert_lt_felt252,
+        hint_err(HintError::AssertLtFelt252(Box::default()))
+    )]
     #[case::hint_value_outside_valid_range(
         expect_hint_value_outside_valid_range,
         hint_err(HintError::ValueOutsideValidRange(Box::default()))
