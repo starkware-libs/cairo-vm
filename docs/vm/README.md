@@ -1,5 +1,3 @@
-<!-- This documentation was taken from the https://github.com/lambdaclass/cairo-vm_in_go repository -->
-
 # How does the Cairo VM work?
 
 ## High Level Overview
@@ -24,7 +22,7 @@ While this repo is only concerned with the second component, it's important to k
 
 Our virtual machine has a very simple flow:
 
-- Take a compiled cairo program as input. You can check out an example program [here](https://github.com/lambdaclass/cairo-vm.go/blob/main/cairo_programs/fibonacci.cairo).
+- Take a compiled cairo program as input.
 - Run the bytecode from the compiled program, doing the usual `fetch->decode->execute` loop, running until program termination.
 - On every step of the execution, record the values of each register.
 - Take the register values and memory at every step and write them to a file, called the `execution trace`.
@@ -356,6 +354,3 @@ The input of the Virtual Machine is a compiled Cairo program in Json format. The
 - **prime:** The cairo prime in hexadecimal format. As explained above, all arithmetic operations are done over a base field, modulo this primer number.
 - **reference_manager:** Contains information about cairo variables. This information is useful to access to variables when executing cairo hints.
 
-# Code Walkthrough
-
-If you want a step by step guide on how to implement your own VM you can read our [code walkthrough in Go](https://github.com/lambdaclass/cairo-vm_in_go?tab=readme-ov-file#code-walkthroughwrite-your-own-cairo-vm)
