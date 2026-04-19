@@ -79,6 +79,7 @@ pub struct StwoCairoRunConfig {
     pub fill_holes: bool,
     pub secure_run: bool,
     pub disable_trace_padding: bool,
+    pub runner_mode: RunnerMode,
 }
 
 impl Default for StwoCairoRunConfig {
@@ -90,6 +91,7 @@ impl Default for StwoCairoRunConfig {
             fill_holes: false,
             secure_run: true,
             disable_trace_padding: true,
+            runner_mode: RunnerMode::ProofModeCanonical,
         }
     }
 }
@@ -97,7 +99,6 @@ impl Default for StwoCairoRunConfig {
 #[allow(clippy::result_large_err)]
 pub fn cairo_run_stwo(
     program: &Program,
-    runner_mode: RunnerMode,
     allowed_builtins: &[BuiltinName],
     hint_processor: &mut dyn HintProcessor,
     exec_scopes: ExecutionScopes,
@@ -105,10 +106,10 @@ pub fn cairo_run_stwo(
 ) -> Result<CairoRunner, CairoRunError> {
     let _span = span!(Level::INFO, "cairo run stwo").entered();
 
-    let proof_mode = runner_mode != RunnerMode::ExecutionMode;
+    let proof_mode = cairo_run_config.runner_mode != RunnerMode::ExecutionMode;
     let mut cairo_runner = CairoRunner::new_stwo(
         program,
-        runner_mode,
+        cairo_run_config.runner_mode.clone(),
         cairo_run_config.trace_enabled,
         cairo_run_config.disable_trace_padding,
     )?;
@@ -775,12 +776,12 @@ mod tests {
         let program = Program::from_bytes(program_content, Some("main")).unwrap();
         let runner = cairo_run_stwo(
             &program,
-            RunnerMode::ExecutionMode,
             &stwo_allowed_builtins(),
             &mut BuiltinHintProcessor::new_empty(),
             ExecutionScopes::new(),
             &StwoCairoRunConfig {
                 disable_trace_padding: false,
+                runner_mode: RunnerMode::ExecutionMode,
                 ..Default::default()
             },
         )
