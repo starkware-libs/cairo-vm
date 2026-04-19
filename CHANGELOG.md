@@ -11,7 +11,9 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 ---
 
 #### Upcoming Changes
-* feat: add `test_helpers` module (`error_utils`, `test_utils`) with `assert_mr_eq!`, `load_cairo_program!` macros and `expect_*` error checkers, behind `test_utils` feature flag [#2381](https://github.com/starkware-libs/cairo-vm/pull/2381)
+* feat: add `test_helpers` module (`error_utils`, `test_utils`) with `assert_mr_eq`, `load_cairo_program!` macro and `expect_*` error checkers, behind `test_utils` feature flag [#2381](https://github.com/starkware-libs/cairo-vm/pull/2381)
+
+* feat(makefile,ci): add `cairo_test_suite_programs` Makefile target and CI integration to compile Cairo test suite programs before running tests [#2380](https://github.com/starkware-libs/cairo-vm/pull/2380)
 
 * Add Stwo cairo runner API [#2351](https://github.com/lambdaclass/cairo-vm/pull/2351)
 
