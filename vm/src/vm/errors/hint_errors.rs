@@ -196,6 +196,9 @@ pub enum HintError {
     CircuitEvaluationFailed(Box<str>),
     #[error("high limb magnitude should be smaller than 2 ** 127: {0}")]
     BlsSplitError(Box<BigInt>),
+    #[cfg(feature = "test_utils")]
+    #[error("dummy hint error for testing")]
+    Dummy,
 }
 
 #[cfg(test)]

@@ -20,7 +20,6 @@ use crate::vm::runners::cairo_runner::{CairoArg, CairoRunner, ORDERED_BUILTIN_LI
 use crate::vm::security::verify_secure_runner;
 
 /// Identifies a Cairo function entrypoint either by function name or by program counter.
-#[allow(dead_code)]
 pub enum EntryPoint<'a> {
     Name(&'a str),
     Pc(usize),
@@ -83,7 +82,7 @@ impl CairoRunner {
     /// Resolves the entrypoint, builds the call stack, runs until the function's end PC,
     /// and optionally verifies security constraints.
     #[allow(clippy::result_large_err)]
-    pub(crate) fn run_from_entrypoint(
+    pub fn run_from_entrypoint(
         &mut self,
         entrypoint: EntryPoint<'_>,
         args: &[CairoArg],
@@ -114,7 +113,7 @@ impl CairoRunner {
 
     /// Resolves `__main__.<entrypoint>` to its PC, following alias chains.
     #[allow(clippy::result_large_err)]
-    pub(crate) fn get_function_pc(&self, entrypoint: &str) -> Result<usize, CairoRunError> {
+    pub fn get_function_pc(&self, entrypoint: &str) -> Result<usize, CairoRunError> {
         let full_name = format!("__main__.{entrypoint}");
         let identifier = self
             .program

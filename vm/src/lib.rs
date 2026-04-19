@@ -26,6 +26,9 @@ pub mod types;
 pub mod utils;
 pub mod vm;
 
+#[cfg(feature = "test_utils")]
+pub mod test_helpers;
+
 // TODO: use `Felt` directly
 pub use starknet_types_core::felt::Felt as Felt252;
 
