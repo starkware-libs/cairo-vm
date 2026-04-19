@@ -8,6 +8,7 @@ use crate::hint_processor::hint_processor_definition::HintProcessor;
 use crate::serde::deserialize_program::Identifier;
 use crate::types::builtin_name::BuiltinName;
 use crate::types::errors::program_errors::ProgramError;
+use crate::types::layout::CairoLayout;
 use crate::types::layout_name::LayoutName;
 use crate::types::program::Program;
 use crate::types::relocatable::MaybeRelocatable;
@@ -30,7 +31,13 @@ impl CairoRunner {
     /// This is the common-case constructor for executing individual Cairo 0 functions.
     #[allow(clippy::result_large_err)]
     pub fn new_for_testing(program: &Program) -> Result<Self, CairoRunError> {
-        let mut runner = CairoRunner::new(program, LayoutName::plain, None, false, false, false)?;
+        let mut runner = CairoRunner::new(
+            program,
+            CairoLayout::new(LayoutName::plain, None).unwrap(),
+            false,
+            false,
+            false,
+        )?;
         runner.initialize_all_builtins()?;
         runner.initialize_segments(None);
         Ok(runner)
@@ -199,8 +206,14 @@ mod tests {
         let program = load_program(include_bytes!(
             "../../../../cairo_programs/example_program.json"
         ));
-        let runner =
-            CairoRunner::new(&program, LayoutName::plain, None, false, false, false).unwrap();
+        let runner = CairoRunner::new(
+            &program,
+            CairoLayout::new(LayoutName::plain, None).unwrap(),
+            false,
+            false,
+            false,
+        )
+        .unwrap();
 
         assert!(runner.get_builtin_base(BuiltinName::range_check).is_none());
         assert_eq!(runner.vm.segments.num_segments(), 0);

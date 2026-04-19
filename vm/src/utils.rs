@@ -250,8 +250,11 @@ pub mod test_utils {
         ($program:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
                 &$program,
-                crate::types::layout_name::LayoutName::all_cairo,
-                None,
+                crate::types::layout::CairoLayout::new(
+                    crate::types::layout_name::LayoutName::all_cairo,
+                    None,
+                )
+                .unwrap(),
                 false,
                 false,
                 false,
@@ -260,15 +263,18 @@ pub mod test_utils {
         };
         ($program:expr, $layout:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
-                &$program, $layout, None, false, false, false,
+                &$program,
+                crate::types::layout::CairoLayout::new($layout, None).unwrap(),
+                false,
+                false,
+                false,
             )
             .unwrap()
         };
         ($program:expr, $layout:expr, $proof_mode:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
                 &$program,
-                $layout,
-                None,
+                crate::types::layout::CairoLayout::new($layout, None).unwrap(),
                 $proof_mode,
                 false,
                 false,
@@ -278,8 +284,7 @@ pub mod test_utils {
         ($program:expr, $layout:expr, $proof_mode:expr, $trace_enabled:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
                 &$program,
-                $layout,
-                None,
+                crate::types::layout::CairoLayout::new($layout, None).unwrap(),
                 $proof_mode,
                 $trace_enabled,
                 false,

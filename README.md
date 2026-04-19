@@ -229,7 +229,8 @@ When running a Cairo program directly using the Cairo-vm repository you would fi
 2. Instantiate the VM, the cairo_runner, the hint processor, and the entrypoint
 
   ```rust
-  let mut cairo_runner = CairoRunner::new(&program, LayoutName::all_cairo, false, false);
+  let mut cairo_runner =
+      CairoRunner::new(&program, CairoLayout::new(LayoutName::all_cairo, None)?, false, false);
 
   let mut hint_processor = BuiltinHintProcessor::new_empty();
 

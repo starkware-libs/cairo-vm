@@ -269,7 +269,8 @@ mod tests {
     use super::*;
     use assert_matches::assert_matches;
     use cairo_vm::{
-        hint_processor::hint_processor_definition::HintProcessor, types::program::Program,
+        hint_processor::hint_processor_definition::HintProcessor,
+        types::{layout::CairoLayout, program::Program},
         vm::runners::cairo_runner::CairoRunner,
     };
     use rstest::rstest;
@@ -280,8 +281,14 @@ mod tests {
         hint_processor: &mut dyn HintProcessor,
     ) -> Result<CairoRunner, CairoRunError> {
         let program = Program::from_bytes(program_content, Some("main")).unwrap();
-        let mut cairo_runner =
-            CairoRunner::new(&program, LayoutName::all_cairo, None, false, true, false).unwrap();
+        let mut cairo_runner = CairoRunner::new(
+            &program,
+            CairoLayout::new(LayoutName::all_cairo, None).unwrap(),
+            false,
+            true,
+            false,
+        )
+        .unwrap();
         let end = cairo_runner
             .initialize(false)
             .map_err(CairoRunError::Runner)?;

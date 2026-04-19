@@ -1,3 +1,5 @@
+#[cfg(feature = "cairo-1-hints")]
+use crate::types::layout::CairoLayout;
 use crate::types::layout_name::LayoutName;
 #[cfg(all(feature = "cairo-1-hints", feature = "test_utils"))]
 use crate::vm::errors::cairo_run_errors::CairoRunError;
@@ -107,8 +109,7 @@ fn run_cairo_1_entrypoint(
 
     let mut runner = CairoRunner::new(
         &(contract_class.clone().try_into().unwrap()),
-        LayoutName::all_cairo,
-        None,
+        CairoLayout::new(LayoutName::all_cairo, None).unwrap(),
         false,
         false,
         false,
@@ -215,8 +216,7 @@ fn run_cairo_1_entrypoint_with_run_resources(
 ) -> Result<Vec<Felt252>, CairoRunError> {
     let mut runner = CairoRunner::new(
         &(contract_class.clone().try_into().unwrap()),
-        LayoutName::all_cairo,
-        None,
+        CairoLayout::new(LayoutName::all_cairo, None).unwrap(),
         false,
         false,
         false,

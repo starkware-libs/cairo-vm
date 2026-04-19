@@ -1,7 +1,9 @@
 use crate::{
     hint_processor::hint_processor_definition::HintProcessor,
     types::{
-        builtin_name::BuiltinName, layout::CairoLayoutParams, layout_name::LayoutName,
+        builtin_name::BuiltinName,
+        layout::{CairoLayout, CairoLayoutParams},
+        layout_name::LayoutName,
         program::Program,
     },
     vm::{
@@ -165,8 +167,11 @@ pub fn cairo_run_program_with_initial_scope(
 
     let mut cairo_runner = CairoRunner::new(
         program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params.clone(),
+        CairoLayout::new(
+            cairo_run_config.layout,
+            cairo_run_config.dynamic_layout_params.clone(),
+        )
+        .map_err(RunnerError::from)?,
         cairo_run_config.proof_mode,
         cairo_run_config.trace_enabled,
         cairo_run_config.disable_trace_padding,
@@ -272,8 +277,11 @@ pub fn cairo_run_pie(
     let program = Program::from_stripped_program(&pie.metadata.program);
     let mut cairo_runner = CairoRunner::new(
         &program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params.clone(),
+        CairoLayout::new(
+            cairo_run_config.layout,
+            cairo_run_config.dynamic_layout_params.clone(),
+        )
+        .map_err(RunnerError::from)?,
         false,
         cairo_run_config.trace_enabled,
         cairo_run_config.disable_trace_padding,
@@ -430,8 +438,11 @@ pub fn cairo_run_fuzzed_program(
 
     let mut cairo_runner = CairoRunner::new(
         &program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params.clone(),
+        CairoLayout::new(
+            cairo_run_config.layout,
+            cairo_run_config.dynamic_layout_params.clone(),
+        )
+        .map_err(RunnerError::from)?,
         cairo_run_config.proof_mode,
         cairo_run_config.trace_enabled,
         cairo_run_config.disable_trace_padding,
@@ -639,6 +650,24 @@ mod tests {
         let mut output_buffer = String::new();
         runner.vm.write_output(&mut output_buffer).unwrap();
         assert_eq!(&output_buffer, "0\n");
+    }
+
+    #[cfg(feature = "test_utils")]
+    #[test]
+    fn test_cairo_run_fuzzed_program() {
+        let program = Program::from_bytes(
+            include_bytes!("../../cairo_programs/struct.json"),
+            Some("main"),
+        )
+        .unwrap();
+        let mut hint_processor = BuiltinHintProcessor::new_empty();
+        cairo_run_fuzzed_program(
+            program,
+            &CairoRunConfig::default(),
+            &mut hint_processor,
+            1000,
+        )
+        .unwrap();
     }
 
     #[test]

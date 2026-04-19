@@ -41,8 +41,11 @@ use cairo_vm::{
     math_utils::signed_felt,
     serde::deserialize_program::{ApTracking, FlowTrackingData, HintParams, ReferenceManager},
     types::{
-        builtin_name::BuiltinName, layout::CairoLayoutParams, layout_name::LayoutName,
-        program::Program, relocatable::MaybeRelocatable,
+        builtin_name::BuiltinName,
+        layout::{CairoLayout, CairoLayoutParams},
+        layout_name::LayoutName,
+        program::Program,
+        relocatable::MaybeRelocatable,
     },
     vm::{
         errors::{runner_errors::RunnerError, vm_errors::VirtualMachineError},
@@ -258,12 +261,15 @@ pub fn cairo_run_program(
 
     let mut runner = CairoRunner::new_v2(
         &program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params.clone(),
+        CairoLayout::new(
+            cairo_run_config.layout,
+            cairo_run_config.dynamic_layout_params.clone(),
+        )
+        .map_err(RunnerError::from)?,
         runner_mode,
         cairo_run_config.trace_enabled,
         false,
-    )?;
+    );
     let end = runner.initialize(cairo_run_config.proof_mode)?;
     load_arguments(&mut runner, &cairo_run_config, main_func)?;
 
