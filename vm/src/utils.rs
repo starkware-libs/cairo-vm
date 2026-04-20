@@ -260,7 +260,6 @@ pub mod test_utils {
                 .run_config()
                 .unwrap(),
             )
-            .unwrap()
         };
         ($program:expr, $layout:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
@@ -275,7 +274,6 @@ pub mod test_utils {
                 .run_config()
                 .unwrap(),
             )
-            .unwrap()
         };
         ($program:expr, $layout:expr, $proof_mode:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
@@ -290,7 +288,6 @@ pub mod test_utils {
                 .run_config()
                 .unwrap(),
             )
-            .unwrap()
         };
         ($program:expr, $layout:expr, $proof_mode:expr, $trace_enabled:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
@@ -305,7 +302,6 @@ pub mod test_utils {
                 .run_config()
                 .unwrap(),
             )
-            .unwrap()
         };
     }
     pub(crate) use cairo_runner;

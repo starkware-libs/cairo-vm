@@ -116,8 +116,7 @@ fn run_cairo_1_entrypoint(
         }
         .run_config()
         .unwrap(),
-    )
-    .unwrap();
+    );
 
     let program_builtins = get_casm_contract_builtins(&contract_class, entrypoint_offset);
     runner
@@ -228,8 +227,7 @@ fn run_cairo_1_entrypoint_with_run_resources(
         }
         .run_config()
         .unwrap(),
-    )
-    .unwrap();
+    );
 
     let program_builtins = get_casm_contract_builtins(&contract_class, entrypoint_offset);
     runner

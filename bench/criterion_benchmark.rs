@@ -27,23 +27,20 @@ fn build_many_runners(c: &mut Criterion) {
     let program = Program::from_bytes(program.as_slice(), Some("main")).unwrap();
     c.bench_function("build runner", |b| {
         b.iter_with_large_drop(|| {
-            _ = black_box(
-                CairoRunner::new(
-                    black_box(&program),
-                    black_box(
-                        &Cairo0RunConfig {
-                            layout: LayoutName::starknet_with_keccak,
-                            proof_mode: false,
-                            trace_enabled: false,
-                            disable_trace_padding: false,
-                            ..Default::default()
-                        }
-                        .run_config()
-                        .unwrap(),
-                    ),
-                )
-                .unwrap(),
-            );
+            _ = black_box(CairoRunner::new(
+                black_box(&program),
+                black_box(
+                    &Cairo0RunConfig {
+                        layout: LayoutName::starknet_with_keccak,
+                        proof_mode: false,
+                        trace_enabled: false,
+                        disable_trace_padding: false,
+                        ..Default::default()
+                    }
+                    .run_config()
+                    .unwrap(),
+                ),
+            ));
         })
     });
 }
@@ -67,7 +64,6 @@ fn load_program_data(c: &mut Criterion) {
                     .run_config()
                     .unwrap(),
                 )
-                .unwrap()
             },
             |mut runner| _ = black_box(runner.initialize(false).unwrap()),
             BatchSize::SmallInput,

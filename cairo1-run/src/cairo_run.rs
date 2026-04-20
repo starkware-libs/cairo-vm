@@ -277,7 +277,7 @@ pub fn cairo_run_program(
         )?
     };
 
-    let mut runner = CairoRunner::new_v2(&program, &cairo_run_config.run_config()?);
+    let mut runner = CairoRunner::new(&program, &cairo_run_config.run_config()?);
     let end = runner.initialize(cairo_run_config.proof_mode)?;
     load_arguments(&mut runner, &cairo_run_config, main_func)?;
 

@@ -38,7 +38,7 @@ impl CairoRunner {
                 ..Default::default()
             }
             .run_config()?,
-        )?;
+        );
         runner.initialize_all_builtins()?;
         runner.initialize_segments(None);
         Ok(runner)
@@ -215,8 +215,7 @@ mod tests {
             }
             .run_config()
             .unwrap(),
-        )
-        .unwrap();
+        );
 
         assert!(runner.get_builtin_base(BuiltinName::range_check).is_none());
         assert_eq!(runner.vm.segments.num_segments(), 0);
