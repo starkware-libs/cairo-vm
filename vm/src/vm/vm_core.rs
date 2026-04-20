@@ -106,6 +106,12 @@ impl DeducedOperands {
     }
 }
 
+#[derive(Default)]
+pub struct VirtualMachineConfig {
+    pub trace_enabled: bool,
+    pub disable_trace_padding: bool,
+}
+
 pub struct VirtualMachine {
     pub(crate) run_context: RunContext,
     pub builtin_runners: Vec<BuiltinRunner>,
@@ -135,15 +141,21 @@ pub struct VirtualMachine {
     pub(crate) relocation_table: Option<Vec<usize>>,
 }
 
+impl Default for VirtualMachine {
+    fn default() -> Self {
+        Self::new(&VirtualMachineConfig::default())
+    }
+}
+
 impl VirtualMachine {
-    pub fn new(trace_enabled: bool, disable_trace_padding: bool) -> VirtualMachine {
+    pub fn new(config: &VirtualMachineConfig) -> VirtualMachine {
         let run_context = RunContext {
             pc: Relocatable::from((0, 0)),
             ap: 0,
             fp: 0,
         };
 
-        let trace = if trace_enabled {
+        let trace = if config.trace_enabled {
             Some(Vec::<TraceEntry>::new())
         } else {
             None
@@ -160,7 +172,7 @@ impl VirtualMachine {
             segments: MemorySegmentManager::new(),
             rc_limits: None,
             run_finished: false,
-            disable_trace_padding,
+            disable_trace_padding: config.disable_trace_padding,
             instruction_cache: Vec::new(),
             #[cfg(feature = "test_utils")]
             hooks: None,
@@ -1660,7 +1672,7 @@ mod tests {
             op1: MaybeRelocatable::Int(Felt252::from(10)),
         };
 
-        let mut vm = VirtualMachine::new(false, false);
+        let mut vm = VirtualMachine::default();
         vm.run_context.pc = Relocatable::from((0, 4));
         vm.run_context.ap = 5;
         vm.run_context.fp = 6;

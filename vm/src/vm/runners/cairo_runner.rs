@@ -1,4 +1,4 @@
-use crate::vm::trace::trace_entry::TraceEntry;
+use crate::vm::{trace::trace_entry::TraceEntry, vm_core::VirtualMachineConfig};
 
 use std::{
     any::Any,
@@ -201,6 +201,15 @@ impl CairoRunConfig {
     }
 }
 
+impl CairoRunConfig {
+    pub fn vm_config(&self) -> VirtualMachineConfig {
+        VirtualMachineConfig {
+            trace_enabled: self.trace_enabled,
+            disable_trace_padding: self.disable_trace_padding,
+        }
+    }
+}
+
 pub struct CairoRunner {
     pub vm: VirtualMachine,
     pub(crate) program: Program,
@@ -234,7 +243,7 @@ impl CairoRunner {
     pub fn new(program: &Program, config: &CairoRunConfig) -> CairoRunner {
         CairoRunner {
             program: program.clone(),
-            vm: VirtualMachine::new(config.trace_enabled, config.disable_trace_padding),
+            vm: VirtualMachine::new(&config.vm_config()),
             layout: config.layout.clone(),
             final_pc: None,
             program_base: None,
