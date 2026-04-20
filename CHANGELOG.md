@@ -13,6 +13,8 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 #### Upcoming Changes
 
 * Add Stwo cairo runner API [#2351](https://github.com/starkware-libs/cairo-vm/pull/2351)
+* feat: make max traceback entries configurable [#2370](https://github.com/starkware-libs/cairo-vm/pull/2370)
+
 * feat: create and use VirtualMachineConfig [#2369](https://github.com/starkware-libs/cairo-vm/pull/2369)
 
 * feat: consolidate CairoRunner ctors [#2368](https://github.com/starkware-libs/cairo-vm/pull/2368)

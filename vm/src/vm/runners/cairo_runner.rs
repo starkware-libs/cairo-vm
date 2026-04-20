@@ -178,6 +178,7 @@ pub struct CairoRunConfig {
     trace_enabled: bool,
     disable_trace_padding: bool,
     runner_mode: RunnerMode,
+    max_traceback_entries: u32,
 }
 
 impl CairoRunConfig {
@@ -186,6 +187,7 @@ impl CairoRunConfig {
         trace_enabled: bool,
         disable_trace_padding: bool,
         runner_mode: RunnerMode,
+        max_traceback_entries: u32,
     ) -> Result<Self, RunnerError> {
         // `disable_trace_padding` can only be used in `proof_mode`, so we enforce this here to
         // avoid unintended behavior.
@@ -197,6 +199,7 @@ impl CairoRunConfig {
             trace_enabled,
             disable_trace_padding,
             runner_mode,
+            max_traceback_entries,
         })
     }
 }
@@ -206,6 +209,7 @@ impl CairoRunConfig {
         VirtualMachineConfig {
             trace_enabled: self.trace_enabled,
             disable_trace_padding: self.disable_trace_padding,
+            max_traceback_entries: self.max_traceback_entries,
         }
     }
 }
@@ -1717,6 +1721,7 @@ mod tests {
     use crate::types::instance_definitions::bitwise_instance_def::CELLS_PER_BITWISE;
     use crate::types::instance_definitions::keccak_instance_def::CELLS_PER_KECCAK;
     use crate::types::layout_name::LayoutName;
+    use crate::vm::vm_core::DEFAULT_MAX_TRACEBACK_ENTRIES;
     use crate::vm::vm_memory::memory::MemoryCell;
     use std::collections::{HashMap, HashSet};
 
@@ -5923,6 +5928,7 @@ mod tests {
                     secure_run: true,
                     disable_trace_padding: true,
                     runner_mode: RunnerMode::ProofModeCanonical,
+                    max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
                 },
             )
             .unwrap();

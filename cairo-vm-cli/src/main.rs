@@ -15,6 +15,7 @@ use cairo_vm::vm::runners::cairo_pie::CairoPie;
 #[cfg(feature = "with_tracer")]
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 use cairo_vm::vm::runners::cairo_runner::RunResources;
+use cairo_vm::vm::vm_core::DEFAULT_MAX_TRACEBACK_ENTRIES;
 #[cfg(feature = "with_tracer")]
 use cairo_vm_tracer::error::trace_data_errors::TraceDataError;
 #[cfg(feature = "with_tracer")]
@@ -157,6 +158,7 @@ fn run(args: impl Iterator<Item = String>) -> Result<(), Error> {
         allow_missing_builtins: args.allow_missing_builtins,
         dynamic_layout_params: cairo_layout_params,
         disable_trace_padding: false,
+        max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
     };
 
     let mut cairo_runner = match if args.run_from_cairo_pie {

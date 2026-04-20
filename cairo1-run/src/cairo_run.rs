@@ -34,7 +34,7 @@ use cairo_lang_sierra_type_size::get_type_size_map;
 use cairo_lang_utils::{
     bigint::BigIntAsHex, casts::IntoOrPanic, unordered_hash_map::UnorderedHashMap,
 };
-use cairo_vm::vm::runners::cairo_runner::CairoRunConfig;
+use cairo_vm::vm::{runners::cairo_runner::CairoRunConfig, vm_core::DEFAULT_MAX_TRACEBACK_ENTRIES};
 use std::{collections::HashMap, iter::Peekable};
 
 use cairo_vm::{
@@ -113,6 +113,7 @@ pub struct Cairo1RunConfig<'a> {
     /// - It still pads each builtin segment to the next power of 2 (w.r.t the number of used
     ///   instances of the builtin) compared to their sizes at the end of the execution.
     pub disable_trace_padding: bool,
+    pub max_traceback_entries: u32,
 }
 
 impl Default for Cairo1RunConfig<'_> {
@@ -128,6 +129,7 @@ impl Default for Cairo1RunConfig<'_> {
             append_return_values: false,
             dynamic_layout_params: None,
             disable_trace_padding: false,
+            max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
         }
     }
 }
@@ -150,6 +152,7 @@ impl Cairo1RunConfig<'_> {
             self.trace_enabled,
             self.disable_trace_padding,
             runner_mode,
+            self.max_traceback_entries,
         )
     }
 }
