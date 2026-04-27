@@ -351,9 +351,8 @@ mod tests {
             vm.segments
                 .memory
                 .get(&MaybeRelocatable::from((1, 1)))
-                .unwrap()
-                .as_ref(),
-            &MaybeRelocatable::from(12)
+                .unwrap(),
+            MaybeRelocatable::from(12)
         );
         //Check that the tracker's current_ptr has moved accordingly
         check_dict_ptr!(&exec_scopes, 2, (2, 3));

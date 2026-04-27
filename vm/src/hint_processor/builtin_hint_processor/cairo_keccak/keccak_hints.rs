@@ -16,7 +16,7 @@ use crate::{
     Felt252,
 };
 use num_traits::ToPrimitive;
-use std::{borrow::Cow, collections::HashMap};
+use std::collections::HashMap;
 
 // Constants in package "starkware.cairo.common.cairo_keccak.keccak".
 const BYTES_IN_WORD: &str = "starkware.cairo.common.cairo_keccak.keccak.BYTES_IN_WORD";
@@ -335,18 +335,15 @@ pub(crate) fn cairo_keccak_finalize_v2(
 // Helper function to transform a vector of MaybeRelocatables into a vector
 // of u64. Raises error if there are None's or if MaybeRelocatables are not Bigints.
 pub(crate) fn maybe_reloc_vec_to_u64_array(
-    vec: &[Option<Cow<MaybeRelocatable>>],
+    vec: &[Option<MaybeRelocatable>],
 ) -> Result<Vec<u64>, HintError> {
     let array = vec
         .iter()
         .map(|n| match n {
-            Some(Cow::Owned(MaybeRelocatable::Int(ref num)))
-            | Some(Cow::Borrowed(MaybeRelocatable::Int(ref num))) => num
+            Some(MaybeRelocatable::Int(ref num)) => num
                 .to_u64()
                 .ok_or_else(|| MathError::Felt252ToU64Conversion(Box::new(*num)).into()),
-            _ => Err(VirtualMachineError::ExpectedIntAtRange(Box::new(
-                n.as_ref().map(|x| x.as_ref().to_owned()),
-            ))),
+            _ => Err(VirtualMachineError::ExpectedIntAtRange(Box::new(n.clone()))),
         })
         .collect::<Result<Vec<u64>, VirtualMachineError>>()?;
 

@@ -1,7 +1,7 @@
 // This test mirrors the test on cairo-lang for segment_arena
 // https://github.com/starkware-libs/cairo-lang/blob/master/src/starkware/starknet/builtins/segment_arena/segment_arena_test.py
 use crate::types::layout_name::LayoutName;
-use std::{borrow::Cow, collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 use crate::any_box;
 use crate::cairo_run::{cairo_run, Cairo0RunConfig};
@@ -174,7 +174,7 @@ fn test_segment_arena() {
         Some(7),
     ]
     .into_iter()
-    .map(|val| val.map(|int| Cow::Owned(MaybeRelocatable::Int(Felt252::from(int)))))
+    .map(|val| val.map(|int| MaybeRelocatable::Int(Felt252::from(int))))
     .collect();
 
     assert_eq!(concat_segments_data, expected_concat_segment_data);
@@ -200,7 +200,7 @@ fn test_segment_arena() {
         MaybeRelocatable::Int(Felt252::from(2)),
     ]
     .into_iter()
-    .map(|val| Some(Cow::Owned::<MaybeRelocatable>(val)))
+    .map(|val| Some(val))
     .collect();
 
     assert_eq!(infos_data, expected_infos_data);
