@@ -48,7 +48,7 @@ thiserror = { workspace = true }
 starknet-types-core = { version = "0.2.4", default-features = false, features = ["serde", "curve", "num-traits", "hash"] }
 rust_decimal = { version = "1.35.0", default-features = false }
 
-num-prime = { version = "0.4.3", features = ["big-int"] }
+num-prime = { version = "0.5.0", features = ["big-int"] }
 bitvec = { workspace = true }
 
 # Dependencies for cairo-1-hints feature
