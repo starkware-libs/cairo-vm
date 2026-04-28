@@ -854,7 +854,7 @@ pub(super) mod serde_impl {
 mod test {
     use {
         crate::{
-            cairo_run::CairoRunConfig,
+            cairo_run::Cairo0RunConfig,
             hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
             types::layout_name::LayoutName,
         },
@@ -949,7 +949,7 @@ mod test {
     fn read_write_pie_zip(#[case] program_content: &[u8], #[case] identifier: &str) {
         // Run a program to obtain the CairoPie
         let cairo_pie = {
-            let cairo_run_config = CairoRunConfig {
+            let cairo_run_config = Cairo0RunConfig {
                 layout: LayoutName::starknet_with_keccak,
                 ..Default::default()
             };
@@ -977,7 +977,7 @@ mod test {
     fn cairo_pie_with_extra_segments() {
         let program_content = include_bytes!("../../../../cairo_programs/fibonacci.json");
         let mut cairo_pie = {
-            let cairo_run_config = CairoRunConfig {
+            let cairo_run_config = Cairo0RunConfig {
                 layout: LayoutName::starknet_with_keccak,
                 ..Default::default()
             };
@@ -1064,7 +1064,7 @@ mod test {
     fn cairo_pie_without_extra_segments() {
         let program_content = include_bytes!("../../../../cairo_programs/fibonacci.json");
         let mut cairo_pie = {
-            let cairo_run_config = CairoRunConfig {
+            let cairo_run_config = Cairo0RunConfig {
                 layout: LayoutName::starknet_with_keccak,
                 ..Default::default()
             };

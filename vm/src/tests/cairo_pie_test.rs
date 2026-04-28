@@ -6,7 +6,7 @@ use crate::{
 use std::collections::BTreeMap;
 
 use crate::{
-    cairo_run::{cairo_run, CairoRunConfig},
+    cairo_run::{cairo_run, Cairo0RunConfig},
     hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
     types::relocatable::Relocatable,
     vm::runners::{
@@ -24,7 +24,7 @@ fn pedersen_test() {
     let mut hint_processor = BuiltinHintProcessor::new_empty();
     let result = cairo_run(
         program_content,
-        &CairoRunConfig {
+        &Cairo0RunConfig {
             layout: LayoutName::all_cairo,
             ..Default::default()
         },
@@ -105,7 +105,7 @@ fn common_signature() {
     let mut hint_processor = BuiltinHintProcessor::new_empty();
     let result = cairo_run(
         program_content,
-        &CairoRunConfig {
+        &Cairo0RunConfig {
             layout: LayoutName::all_cairo,
             ..Default::default()
         },
@@ -179,7 +179,7 @@ fn relocate_segments() {
     let mut hint_processor = BuiltinHintProcessor::new_empty();
     let result = cairo_run(
         program_content,
-        &CairoRunConfig {
+        &Cairo0RunConfig {
             layout: LayoutName::all_cairo,
             ..Default::default()
         },
@@ -237,7 +237,7 @@ fn serialize_cairo_pie() {
     let mut hint_processor = BuiltinHintProcessor::new_empty();
     let result = cairo_run(
         program_content,
-        &CairoRunConfig {
+        &Cairo0RunConfig {
             layout: LayoutName::small,
             ..Default::default()
         },
@@ -264,7 +264,7 @@ fn run_pie_validity_checks_integration() {
     let mut hint_processor = BuiltinHintProcessor::new_empty();
     let runner = cairo_run(
         program_content,
-        &CairoRunConfig {
+        &Cairo0RunConfig {
             layout: LayoutName::all_cairo,
             ..Default::default()
         },

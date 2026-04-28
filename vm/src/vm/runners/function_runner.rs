@@ -3,6 +3,7 @@
 //! Provides a simplified API for executing individual Cairo 0 functions by name or PC.
 //! This entire module is compiled only when the `test_utils` feature is enabled.
 
+use crate::cairo_run::Cairo0RunConfig;
 use crate::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor;
 use crate::hint_processor::hint_processor_definition::HintProcessor;
 use crate::serde::deserialize_program::Identifier;
@@ -29,7 +30,14 @@ impl CairoRunner {
     /// This is the common-case constructor for executing individual Cairo 0 functions.
     #[allow(clippy::result_large_err)]
     pub fn new_for_testing(program: &Program) -> Result<Self, CairoRunError> {
-        let mut runner = CairoRunner::new(program, LayoutName::plain, None, false, false, false)?;
+        let mut runner = CairoRunner::new(
+            program,
+            &Cairo0RunConfig {
+                layout: LayoutName::plain,
+                ..Default::default()
+            }
+            .run_config()?,
+        );
         runner.initialize_all_builtins()?;
         runner.initialize_segments(None);
         Ok(runner)
@@ -198,8 +206,15 @@ mod tests {
         let program = load_program(include_bytes!(
             "../../../../cairo_programs/example_program.json"
         ));
-        let runner =
-            CairoRunner::new(&program, LayoutName::plain, None, false, false, false).unwrap();
+        let runner = CairoRunner::new(
+            &program,
+            &Cairo0RunConfig {
+                layout: LayoutName::plain,
+                ..Default::default()
+            }
+            .run_config()
+            .unwrap(),
+        );
 
         assert!(runner.get_builtin_base(BuiltinName::range_check).is_none());
         assert_eq!(runner.vm.segments.num_segments(), 0);

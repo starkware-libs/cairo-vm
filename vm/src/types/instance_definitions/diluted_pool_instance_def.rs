@@ -1,7 +1,15 @@
-use crate::vm::errors::runner_errors::RunnerError;
 use serde::Serialize;
+use thiserror::Error;
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Debug, PartialEq, Error)]
+pub enum DilutedPoolInstanceDefError {
+    #[error(
+        "Dynamic layout log_diluted_units_per_step {0} is out of range, absolute value must be < 32"
+    )]
+    DynamicLayoutLogDilutedUnitsPerStepOverflow(i32),
+}
+
+#[derive(Clone, Serialize, Debug, PartialEq)]
 pub(crate) struct DilutedPoolInstanceDef {
     pub(crate) units_per_step: u32, // 2 ^ log_units_per_step (for cairo_lang comparison)
     pub(crate) fractional_units_per_step: bool, // true when log_units_per_step is negative
@@ -28,9 +36,13 @@ impl DilutedPoolInstanceDef {
         }
     }
 
-    pub(crate) fn from_log_units_per_step(log_units_per_step: i32) -> Result<Self, RunnerError> {
+    pub(crate) fn from_log_units_per_step(
+        log_units_per_step: i32,
+    ) -> Result<Self, DilutedPoolInstanceDefError> {
         let units_per_step = 2_u32.checked_pow(log_units_per_step.unsigned_abs()).ok_or(
-            RunnerError::DynamicLayoutLogDilutedUnitsPerStepOverflow(log_units_per_step),
+            DilutedPoolInstanceDefError::DynamicLayoutLogDilutedUnitsPerStepOverflow(
+                log_units_per_step,
+            ),
         )?;
         Ok(DilutedPoolInstanceDef {
             units_per_step,
@@ -42,8 +54,7 @@ impl DilutedPoolInstanceDef {
 
 #[cfg(test)]
 mod tests {
-    use super::DilutedPoolInstanceDef;
-    use crate::vm::errors::runner_errors::RunnerError;
+    use super::{DilutedPoolInstanceDef, DilutedPoolInstanceDefError};
 
     #[test]
     fn test_default() {
@@ -82,7 +93,7 @@ mod tests {
     fn test_from_log_units_per_step_overflow() {
         assert_eq!(
             DilutedPoolInstanceDef::from_log_units_per_step(32),
-            Err(RunnerError::DynamicLayoutLogDilutedUnitsPerStepOverflow(32))
+            Err(DilutedPoolInstanceDefError::DynamicLayoutLogDilutedUnitsPerStepOverflow(32))
         );
     }
 }

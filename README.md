@@ -7,11 +7,11 @@
 
 A faster and safer implementation of the Cairo VM in Rust
 
-[Report Bug](https://github.com/lambdaclass/cairo-vm/issues/new?assignees=&labels=bug&projects=&template=bug_report.md&title=bug%3A+) · [Request Feature](https://github.com/lambdaclass/cairo-vm/issues/new?labels=enhancement&title=feat%3A+)
+[Report Bug](https://github.com/starkware-libs/cairo-vm/issues/new?assignees=&labels=bug&projects=&template=bug_report.md&title=bug%3A+) · [Request Feature](https://github.com/starkware-libs/cairo-vm/issues/new?labels=enhancement&title=feat%3A+)
 
-[![rust](https://github.com/lambdaclass/cairo-vm/actions/workflows/rust.yml/badge.svg)](https://github.com/lambdaclass/cairo-vm/actions/workflows/rust.yml)
-[![codecov](https://img.shields.io/codecov/c/github/lambdaclass/cairo-vm)](https://codecov.io/gh/lambdaclass/cairo-vm)
-[![license](https://img.shields.io/github/license/lambdaclass/cairo-vm)](/LICENSE)
+[![rust](https://github.com/starkware-libs/cairo-vm/actions/workflows/rust.yml/badge.svg)](https://github.com/starkware-libs/cairo-vm/actions/workflows/rust.yml)
+[![codecov](https://img.shields.io/codecov/c/github/starkware-libs/cairo-vm)](https://codecov.io/gh/starkware-libs/cairo-vm)
+[![license](https://img.shields.io/github/license/starkware-libs/cairo-vm)](/LICENSE)
 [![pr-welcome]](#-contributing)
 [![Telegram Chat][tg-badge]][tg-url]
 
@@ -150,7 +150,7 @@ The flag `--layout` determines which builtins can be used. More info about layou
 To sum up, the following code will get you from zero to running a Cairo program:
 
 ```bash
-git clone https://github.com/lambdaclass/cairo-vm.git
+git clone https://github.com/starkware-libs/cairo-vm.git
 
 cd cairo-vm
 
@@ -213,7 +213,7 @@ Currently, as this VM is under construction, it's missing some of the features o
 There are two ways to use non-standard hints in this VM:
 
 - Extend the cairo-vm code and build your own binary using the interface [HintProcessor](docs/hint_processor/README.md).
-- Use [cairo-vm-py](https://github.com/lambdaclass/cairo-vm-py) which supports running any hint in a Python interpreter.
+
 
 ### Running a function in a Cairo program with arguments
 
@@ -229,7 +229,8 @@ When running a Cairo program directly using the Cairo-vm repository you would fi
 2. Instantiate the VM, the cairo_runner, the hint processor, and the entrypoint
 
   ```rust
-  let mut cairo_runner = CairoRunner::new(&program, LayoutName::all_cairo, false, false);
+  let mut cairo_runner =
+      CairoRunner::new(&program, CairoLayout::new(LayoutName::all_cairo, None)?, false, false);
 
   let mut hint_processor = BuiltinHintProcessor::new_empty();
 
@@ -286,7 +287,7 @@ Running a [Cairo program](./cairo_programs/benchmarks/big_fibonacci.cairo) that 
 - [Flamegraph](./docs/benchmarks/flamegraph.svg)
 - Github action [results](https://lambdaclass.github.io/cairo-vm/)
 
-Note before running the benchmark suite: the benchmark named [iai_benchmark](https://github.com/lambdaclass/cairo-vm/blob/8dba86dbec935fa04a255e2edf3d5d184950fa22/Cargo.toml#L59) depends on Valgrind. Please make sure it is installed prior to running the `iai_benchmark` benchmark.
+Note before running the benchmark suite: the benchmark named [iai_benchmark](https://github.com/starkware-libs/cairo-vm/blob/8dba86dbec935fa04a255e2edf3d5d184950fa22/Cargo.toml#L59) depends on Valgrind. Please make sure it is installed prior to running the `iai_benchmark` benchmark.
 
 Run the complete benchmark suite with cargo:
 
@@ -335,7 +336,7 @@ You can find more detailed instructions in the [CONTRIBUTING.md](CONTRIBUTING.md
 ## 🌞 Related Projects
 
 - [starknet_in_rust](https://github.com/lambdaclass/starknet_in_rust): implementation of Starknet in Rust, powered by the cairo-vm.
-- [cairo-vm-py](https://github.com/lambdaclass/cairo-vm-py): Bindings for using cairo-vm from Python code.
+
 
 ## 📚 Documentation
 

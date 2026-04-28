@@ -884,7 +884,7 @@ fn cairo_run_if_reloc_equal() {
 #[test]
 fn fibonacci_proof_mode_disable_trace_padding() {
     let program_data = include_bytes!("../../../cairo_programs/proof_programs/fibonacci.json");
-    let config = CairoRunConfig {
+    let config = Cairo0RunConfig {
         proof_mode: true,
         fill_holes: true,
         disable_trace_padding: true,
@@ -960,7 +960,7 @@ fn cairo_run_print_dict_array() {
 #[test]
 fn run_program_allow_missing_builtins() {
     let program_data = include_bytes!("../../../cairo_programs/pedersen_extra_builtins.json");
-    let config = CairoRunConfig {
+    let config = Cairo0RunConfig {
         allow_missing_builtins: Some(true),
         layout: LayoutName::small, // The program logic only uses builtins in the small layout but contains builtins outside of it
         ..Default::default()
@@ -977,7 +977,7 @@ fn run_program_allow_missing_builtins() {
 fn run_program_allow_missing_builtins_proof() {
     let program_data =
         include_bytes!("../../../cairo_programs/proof_programs/pedersen_extra_builtins.json");
-    let config = CairoRunConfig {
+    let config = Cairo0RunConfig {
         proof_mode: true,
         fill_holes: true,
         allow_missing_builtins: Some(true),
@@ -1061,7 +1061,7 @@ fn run_program_with_custom_mod_builtin_params(
     word_bit_len: u32,
     security_error: Option<&str>,
 ) {
-    let cairo_run_config = CairoRunConfig {
+    let cairo_run_config = Cairo0RunConfig {
         layout: LayoutName::all_cairo,
         proof_mode,
         fill_holes: proof_mode,
@@ -1069,15 +1069,7 @@ fn run_program_with_custom_mod_builtin_params(
     };
     let mut hint_processor = BuiltinHintProcessor::new_empty();
     let program = Program::from_bytes(data, Some(cairo_run_config.entrypoint)).unwrap();
-    let mut cairo_runner = CairoRunner::new(
-        &program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params,
-        cairo_run_config.proof_mode,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
-    )
-    .unwrap();
+    let mut cairo_runner = CairoRunner::new(&program, &cairo_run_config.run_config().unwrap());
 
     let end = cairo_runner.initialize(false).unwrap();
     // Modify add_mod & mul_mod params

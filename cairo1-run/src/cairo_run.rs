@@ -34,6 +34,7 @@ use cairo_lang_sierra_type_size::get_type_size_map;
 use cairo_lang_utils::{
     bigint::BigIntAsHex, casts::IntoOrPanic, unordered_hash_map::UnorderedHashMap,
 };
+use cairo_vm::vm::{runners::cairo_runner::CairoRunConfig, vm_core::DEFAULT_MAX_TRACEBACK_ENTRIES};
 use std::{collections::HashMap, iter::Peekable};
 
 use cairo_vm::{
@@ -41,8 +42,11 @@ use cairo_vm::{
     math_utils::signed_felt,
     serde::deserialize_program::{ApTracking, FlowTrackingData, HintParams, ReferenceManager},
     types::{
-        builtin_name::BuiltinName, layout::CairoLayoutParams, layout_name::LayoutName,
-        program::Program, relocatable::MaybeRelocatable,
+        builtin_name::BuiltinName,
+        layout::{CairoLayout, CairoLayoutParams},
+        layout_name::LayoutName,
+        program::Program,
+        relocatable::MaybeRelocatable,
     },
     vm::{
         errors::{runner_errors::RunnerError, vm_errors::VirtualMachineError},
@@ -101,6 +105,15 @@ pub struct Cairo1RunConfig<'a> {
     pub finalize_builtins: bool,
     /// Appends the return and input values to the output segment. This is performed by default when running in proof_mode
     pub append_return_values: bool,
+    /// Disable padding of the trace.
+    /// By default, the trace is padded to accommodate the expected builtins-n_steps relationships
+    /// according to the layout.
+    /// When the padding is disabled:
+    /// - It doesn't modify/pad n_steps.
+    /// - It still pads each builtin segment to the next power of 2 (w.r.t the number of used
+    ///   instances of the builtin) compared to their sizes at the end of the execution.
+    pub disable_trace_padding: bool,
+    pub max_traceback_entries: u32,
 }
 
 impl Default for Cairo1RunConfig<'_> {
@@ -115,6 +128,8 @@ impl Default for Cairo1RunConfig<'_> {
             finalize_builtins: false,
             append_return_values: false,
             dynamic_layout_params: None,
+            disable_trace_padding: false,
+            max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
         }
     }
 }
@@ -124,6 +139,21 @@ impl Cairo1RunConfig<'_> {
     // copying input and output values into it's segment
     fn copy_to_output(&self) -> bool {
         self.append_return_values || self.proof_mode
+    }
+
+    pub fn run_config(&self) -> Result<CairoRunConfig, RunnerError> {
+        let runner_mode = if self.proof_mode {
+            RunnerMode::ProofModeCairo1
+        } else {
+            RunnerMode::ExecutionMode
+        };
+        CairoRunConfig::new(
+            CairoLayout::new(self.layout, self.dynamic_layout_params.clone())?,
+            self.trace_enabled,
+            self.disable_trace_padding,
+            runner_mode,
+            self.max_traceback_entries,
+        )
     }
 }
 
@@ -250,20 +280,7 @@ pub fn cairo_run_program(
         )?
     };
 
-    let runner_mode = if cairo_run_config.proof_mode {
-        RunnerMode::ProofModeCairo1
-    } else {
-        RunnerMode::ExecutionMode
-    };
-
-    let mut runner = CairoRunner::new_v2(
-        &program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params.clone(),
-        runner_mode,
-        cairo_run_config.trace_enabled,
-        false,
-    )?;
+    let mut runner = CairoRunner::new(&program, &cairo_run_config.run_config()?);
     let end = runner.initialize(cairo_run_config.proof_mode)?;
     load_arguments(&mut runner, &cairo_run_config, main_func)?;
 

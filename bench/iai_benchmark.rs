@@ -1,3 +1,4 @@
+use cairo_vm::cairo_run::Cairo0RunConfig;
 use core::hint::black_box;
 use iai_callgrind::library_benchmark;
 use iai_callgrind::library_benchmark_group;
@@ -36,13 +37,16 @@ fn build_runner() {
     let program = parse_program_helper();
     let runner = CairoRunner::new(
         black_box(&program),
-        LayoutName::starknet_with_keccak,
-        None,
-        false,
-        false,
-        false,
-    )
-    .unwrap();
+        &Cairo0RunConfig {
+            layout: LayoutName::starknet_with_keccak,
+            proof_mode: false,
+            trace_enabled: false,
+            disable_trace_padding: false,
+            ..Default::default()
+        }
+        .run_config()
+        .unwrap(),
+    );
     core::mem::drop(black_box(runner));
 }
 
@@ -54,13 +58,16 @@ fn build_runner_helper() -> CairoRunner {
     let program = Program::from_bytes(program.as_slice(), Some("main")).unwrap();
     CairoRunner::new(
         &program,
-        LayoutName::starknet_with_keccak,
-        None,
-        false,
-        false,
-        false,
+        &Cairo0RunConfig {
+            layout: LayoutName::starknet_with_keccak,
+            proof_mode: false,
+            trace_enabled: false,
+            disable_trace_padding: false,
+            ..Default::default()
+        }
+        .run_config()
+        .unwrap(),
     )
-    .unwrap()
 }
 
 #[library_benchmark]

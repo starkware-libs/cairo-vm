@@ -1,4 +1,5 @@
 use cairo_vm::{
+    cairo_run::Cairo0RunConfig,
     types::{layout_name::LayoutName, program::Program},
     vm::runners::cairo_runner::CairoRunner,
 };
@@ -26,17 +27,20 @@ fn build_many_runners(c: &mut Criterion) {
     let program = Program::from_bytes(program.as_slice(), Some("main")).unwrap();
     c.bench_function("build runner", |b| {
         b.iter_with_large_drop(|| {
-            _ = black_box(
-                CairoRunner::new(
-                    black_box(&program),
-                    black_box(LayoutName::starknet_with_keccak),
-                    black_box(None),
-                    black_box(false),
-                    black_box(false),
-                    black_box(false),
-                )
-                .unwrap(),
-            );
+            _ = black_box(CairoRunner::new(
+                black_box(&program),
+                black_box(
+                    &Cairo0RunConfig {
+                        layout: LayoutName::starknet_with_keccak,
+                        proof_mode: false,
+                        trace_enabled: false,
+                        disable_trace_padding: false,
+                        ..Default::default()
+                    }
+                    .run_config()
+                    .unwrap(),
+                ),
+            ));
         })
     });
 }
@@ -50,13 +54,16 @@ fn load_program_data(c: &mut Criterion) {
             || {
                 CairoRunner::new(
                     &program,
-                    LayoutName::starknet_with_keccak,
-                    None,
-                    false,
-                    false,
-                    false,
+                    &Cairo0RunConfig {
+                        layout: LayoutName::starknet_with_keccak,
+                        proof_mode: false,
+                        trace_enabled: false,
+                        disable_trace_padding: false,
+                        ..Default::default()
+                    }
+                    .run_config()
+                    .unwrap(),
                 )
-                .unwrap()
             },
             |mut runner| _ = black_box(runner.initialize(false).unwrap()),
             BatchSize::SmallInput,

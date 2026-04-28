@@ -4,7 +4,7 @@ use crate::types::layout_name::LayoutName;
 use std::{borrow::Cow, collections::HashMap, rc::Rc};
 
 use crate::any_box;
-use crate::cairo_run::{cairo_run, CairoRunConfig};
+use crate::cairo_run::{cairo_run, Cairo0RunConfig};
 use crate::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor;
 use crate::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
 use crate::hint_processor::hint_processor_definition::HintReference;
@@ -144,7 +144,7 @@ fn test_segment_arena() {
     );
 
     let mut hint_executor = BuiltinHintProcessor::new(extra_hints, run_resources);
-    let cairo_run_config = CairoRunConfig {
+    let cairo_run_config = Cairo0RunConfig {
         entrypoint: "test_segment_arena",
         layout: LayoutName::all_cairo,
         relocate_mem: true,
