@@ -4,7 +4,7 @@
 unsupported_os () {
     echo "Detected OS ($1) is unsupported."
     echo "Please open an issue (PRs welcome ❤️) on:"
-    echo "    https://github.com/lambdaclass/cairo-vm/issues"
+    echo "    https://github.com/starkware-libs/cairo-vm/issues"
     echo ""
     echo "NOTE: you can still try installing dependencies manually"
     echo "If your OS differs from the detected one, you can look \

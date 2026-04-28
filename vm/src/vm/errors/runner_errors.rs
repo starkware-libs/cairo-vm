@@ -2,6 +2,7 @@
 #![allow(clippy::explicit_auto_deref)]
 
 use crate::types::builtin_name::BuiltinName;
+use crate::types::layout::CairoLayoutError;
 use crate::types::layout_name::LayoutName;
 use std::collections::HashSet;
 use thiserror::Error;
@@ -116,12 +117,10 @@ pub enum RunnerError {
     CairoPieProofMode,
     #[error("{0}: Invalid additional data")]
     InvalidAdditionalData(BuiltinName),
-    #[error("dynamic layout params is missing")]
-    MissingDynamicLayoutParams,
+    #[error(transparent)]
+    CairoLayout(#[from] CairoLayoutError),
     #[error("dynamic layout {0} ratio should be 0 when disabled")]
     BadDynamicLayoutBuiltinRatio(BuiltinName),
-    #[error("dynamic layout log_diluted_units_per_step {0} is out of range, absolute value must be < 32")]
-    DynamicLayoutLogDilutedUnitsPerStepOverflow(i32),
     #[error("Initialization failure: Cannot run with trace padding disabled without proof mode")]
     DisableTracePaddingWithoutProofMode,
     #[error("Builtin {0} is not supported in Stwo mode")]

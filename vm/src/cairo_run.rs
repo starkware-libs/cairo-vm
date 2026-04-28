@@ -1,7 +1,9 @@
 use crate::{
     hint_processor::hint_processor_definition::HintProcessor,
     types::{
-        builtin_name::BuiltinName, layout::CairoLayoutParams, layout_name::LayoutName,
+        builtin_name::BuiltinName,
+        layout::{CairoLayout, CairoLayoutParams},
+        layout_name::LayoutName,
         program::Program,
     },
     vm::{
@@ -10,10 +12,11 @@ use crate::{
         },
         runners::{
             cairo_pie::CairoPie,
-            cairo_runner::{CairoRunner, RunnerMode},
+            cairo_runner::{CairoRunConfig, CairoRunner, RunnerMode},
         },
         security::verify_secure_runner,
         trace::trace_entry::RelocatedTraceEntry,
+        vm_core::DEFAULT_MAX_TRACEBACK_ENTRIES,
     },
     Felt252,
 };
@@ -25,7 +28,7 @@ use core::fmt;
 use tracing::{info, span, Level};
 
 #[cfg_attr(feature = "test_utils", derive(Arbitrary))]
-pub struct CairoRunConfig<'a> {
+pub struct Cairo0RunConfig<'a> {
     #[cfg_attr(feature = "test_utils", arbitrary(value = "main"))]
     pub entrypoint: &'a str,
     pub trace_enabled: bool,
@@ -49,11 +52,12 @@ pub struct CairoRunConfig<'a> {
     ///   instances of the builtin) compared to their sizes at the end of the execution.
     pub disable_trace_padding: bool,
     pub allow_missing_builtins: Option<bool>,
+    pub max_traceback_entries: u32,
 }
 
-impl Default for CairoRunConfig<'_> {
+impl Default for Cairo0RunConfig<'_> {
     fn default() -> Self {
-        CairoRunConfig {
+        Cairo0RunConfig {
             entrypoint: "main",
             trace_enabled: false,
             relocate_mem: false,
@@ -66,10 +70,29 @@ impl Default for CairoRunConfig<'_> {
             disable_trace_padding: false,
             allow_missing_builtins: None,
             dynamic_layout_params: None,
+            max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
         }
     }
 }
 
+impl Cairo0RunConfig<'_> {
+    pub fn run_config(&self) -> Result<CairoRunConfig, RunnerError> {
+        let runner_mode = if self.proof_mode {
+            RunnerMode::ProofModeCanonical
+        } else {
+            RunnerMode::ExecutionMode
+        };
+        CairoRunConfig::new(
+            CairoLayout::new(self.layout, self.dynamic_layout_params.clone())?,
+            self.trace_enabled,
+            self.disable_trace_padding,
+            runner_mode,
+            self.max_traceback_entries,
+        )
+    }
+}
+
+#[derive(Clone)]
 pub struct StwoCairoRunConfig {
     pub trace_enabled: bool,
     pub relocate_mem: bool,
@@ -77,6 +100,8 @@ pub struct StwoCairoRunConfig {
     pub fill_holes: bool,
     pub secure_run: bool,
     pub disable_trace_padding: bool,
+    pub runner_mode: RunnerMode,
+    pub max_traceback_entries: u32,
 }
 
 impl Default for StwoCairoRunConfig {
@@ -88,14 +113,27 @@ impl Default for StwoCairoRunConfig {
             fill_holes: false,
             secure_run: true,
             disable_trace_padding: true,
+            runner_mode: RunnerMode::ProofModeCanonical,
+            max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
         }
+    }
+}
+
+impl StwoCairoRunConfig {
+    pub fn run_config(&self) -> Result<CairoRunConfig, RunnerError> {
+        CairoRunConfig::new(
+            CairoLayout::all_cairo_stwo_instance(),
+            self.trace_enabled,
+            self.disable_trace_padding,
+            self.runner_mode.clone(),
+            self.max_traceback_entries,
+        )
     }
 }
 
 #[allow(clippy::result_large_err)]
 pub fn cairo_run_stwo(
     program: &Program,
-    runner_mode: RunnerMode,
     allowed_builtins: &[BuiltinName],
     hint_processor: &mut dyn HintProcessor,
     exec_scopes: ExecutionScopes,
@@ -103,13 +141,8 @@ pub fn cairo_run_stwo(
 ) -> Result<CairoRunner, CairoRunError> {
     let _span = span!(Level::INFO, "cairo run stwo").entered();
 
-    let proof_mode = runner_mode != RunnerMode::ExecutionMode;
-    let mut cairo_runner = CairoRunner::new_stwo(
-        program,
-        runner_mode,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
-    )?;
+    let proof_mode = cairo_run_config.runner_mode != RunnerMode::ExecutionMode;
+    let mut cairo_runner = CairoRunner::new(program, &cairo_run_config.run_config()?);
     cairo_runner.exec_scopes = exec_scopes;
 
     let end = cairo_runner.initialize_stwo(allowed_builtins)?;
@@ -150,7 +183,7 @@ pub fn cairo_run_stwo(
 /// Runs a program with a customized execution scope.
 pub fn cairo_run_program_with_initial_scope(
     program: &Program,
-    cairo_run_config: &CairoRunConfig,
+    cairo_run_config: &Cairo0RunConfig,
     hint_processor: &mut dyn HintProcessor,
     exec_scopes: ExecutionScopes,
 ) -> Result<CairoRunner, CairoRunError> {
@@ -163,14 +196,7 @@ pub fn cairo_run_program_with_initial_scope(
         .allow_missing_builtins
         .unwrap_or(cairo_run_config.proof_mode);
 
-    let mut cairo_runner = CairoRunner::new(
-        program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params.clone(),
-        cairo_run_config.proof_mode,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
-    )?;
+    let mut cairo_runner = CairoRunner::new(program, &cairo_run_config.run_config()?);
 
     cairo_runner.exec_scopes = exec_scopes;
 
@@ -221,7 +247,7 @@ pub fn cairo_run_program_with_initial_scope(
 #[allow(clippy::result_large_err)]
 pub fn cairo_run_program(
     program: &Program,
-    cairo_run_config: &CairoRunConfig,
+    cairo_run_config: &Cairo0RunConfig,
     hint_processor: &mut dyn HintProcessor,
 ) -> Result<CairoRunner, CairoRunError> {
     cairo_run_program_with_initial_scope(
@@ -235,7 +261,7 @@ pub fn cairo_run_program(
 #[allow(clippy::result_large_err)]
 pub fn cairo_run(
     program_content: &[u8],
-    cairo_run_config: &CairoRunConfig,
+    cairo_run_config: &Cairo0RunConfig,
     hint_processor: &mut dyn HintProcessor,
 ) -> Result<CairoRunner, CairoRunError> {
     let program = Program::from_bytes(program_content, Some(cairo_run_config.entrypoint))?;
@@ -252,7 +278,7 @@ pub fn cairo_run(
 /// An error will be returned if this doesn't hold.
 pub fn cairo_run_pie(
     pie: &CairoPie,
-    cairo_run_config: &CairoRunConfig,
+    cairo_run_config: &Cairo0RunConfig,
     hint_processor: &mut dyn HintProcessor,
 ) -> Result<CairoRunner, CairoRunError> {
     if cairo_run_config.proof_mode {
@@ -270,14 +296,7 @@ pub fn cairo_run_pie(
     let allow_missing_builtins = cairo_run_config.allow_missing_builtins.unwrap_or_default();
 
     let program = Program::from_stripped_program(&pie.metadata.program);
-    let mut cairo_runner = CairoRunner::new(
-        &program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params.clone(),
-        false,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
-    )?;
+    let mut cairo_runner = CairoRunner::new(&program, &cairo_run_config.run_config()?);
 
     let end = cairo_runner.initialize(allow_missing_builtins)?;
     cairo_runner.vm.finalize_segments_by_cairo_pie(pie);
@@ -331,7 +350,7 @@ pub fn cairo_run_pie(
 }
 
 /// Runs a Cairo PIE using the Stwo runtime API.
-/// Same as `cairo_run_pie` but uses `new_stwo` + `initialize_stwo` instead of layouts.
+/// Same as `cairo_run_pie` but uses [StwoCairoRunConfig] + `initialize_stwo` instead of layouts.
 /// Note: Cairo PIEs cannot be run in proof mode.
 /// WARNING: As the RunResources are part of the HintProcessor trait, the caller should make sure that
 /// the number of steps in the `RunResources` matches that of the `ExecutionResources` in the `CairoPie`.
@@ -352,12 +371,14 @@ pub fn cairo_run_pie_stwo(
     pie.run_validity_checks()?;
 
     let program = Program::from_stripped_program(&pie.metadata.program);
-    let mut cairo_runner = CairoRunner::new_stwo(
+    let mut cairo_runner = CairoRunner::new(
         &program,
-        RunnerMode::ExecutionMode,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
-    )?;
+        &StwoCairoRunConfig {
+            runner_mode: RunnerMode::ExecutionMode,
+            ..cairo_run_config.clone()
+        }
+        .run_config()?,
+    );
 
     let end = cairo_runner.initialize_stwo(allowed_builtins)?;
     cairo_runner.vm.finalize_segments_by_cairo_pie(pie);
@@ -414,7 +435,7 @@ pub fn cairo_run_pie_stwo(
 #[allow(clippy::result_large_err)]
 pub fn cairo_run_fuzzed_program(
     program: Program,
-    cairo_run_config: &CairoRunConfig,
+    cairo_run_config: &Cairo0RunConfig,
     hint_processor: &mut dyn HintProcessor,
     steps_limit: usize,
 ) -> Result<CairoRunner, CairoRunError> {
@@ -428,14 +449,7 @@ pub fn cairo_run_fuzzed_program(
         .allow_missing_builtins
         .unwrap_or(cairo_run_config.proof_mode);
 
-    let mut cairo_runner = CairoRunner::new(
-        &program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params.clone(),
-        cairo_run_config.proof_mode,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
-    )?;
+    let mut cairo_runner = CairoRunner::new(&program, &cairo_run_config.run_config()?);
 
     let _end = cairo_runner.initialize(allow_missing_builtins)?;
 
@@ -603,7 +617,7 @@ mod tests {
         let mut hint_processor = BuiltinHintProcessor::new_empty();
         let no_data_program_path =
             include_bytes!("../../cairo_programs/manually_compiled/no_data_program.json");
-        let cairo_run_config = CairoRunConfig::default();
+        let cairo_run_config = Cairo0RunConfig::default();
         assert!(cairo_run(no_data_program_path, &cairo_run_config, &mut hint_processor,).is_err());
     }
 
@@ -614,7 +628,7 @@ mod tests {
         let mut hint_processor = BuiltinHintProcessor::new_empty();
         let no_main_program =
             include_bytes!("../../cairo_programs/manually_compiled/no_main_program.json");
-        let cairo_run_config = CairoRunConfig::default();
+        let cairo_run_config = Cairo0RunConfig::default();
         assert!(cairo_run(no_main_program, &cairo_run_config, &mut hint_processor,).is_err());
     }
 
@@ -625,7 +639,7 @@ mod tests {
         let mut hint_processor = BuiltinHintProcessor::new_empty();
         let invalid_memory =
             include_bytes!("../../cairo_programs/manually_compiled/invalid_memory.json");
-        let cairo_run_config = CairoRunConfig::default();
+        let cairo_run_config = Cairo0RunConfig::default();
         assert!(cairo_run(invalid_memory, &cairo_run_config, &mut hint_processor,).is_err());
     }
 
@@ -639,6 +653,24 @@ mod tests {
         let mut output_buffer = String::new();
         runner.vm.write_output(&mut output_buffer).unwrap();
         assert_eq!(&output_buffer, "0\n");
+    }
+
+    #[cfg(feature = "test_utils")]
+    #[test]
+    fn test_cairo_run_fuzzed_program() {
+        let program = Program::from_bytes(
+            include_bytes!("../../cairo_programs/struct.json"),
+            Some("main"),
+        )
+        .unwrap();
+        let mut hint_processor = BuiltinHintProcessor::new_empty();
+        cairo_run_fuzzed_program(
+            program,
+            &Cairo0RunConfig::default(),
+            &mut hint_processor,
+            1000,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -666,7 +698,7 @@ mod tests {
     #[case(include_bytes!("../../cairo_programs/bitwise_output.json"))]
     #[case(include_bytes!("../../cairo_programs/value_beyond_segment.json"))]
     fn get_and_run_cairo_pie(#[case] program_content: &[u8]) {
-        let cairo_run_config = CairoRunConfig {
+        let cairo_run_config = Cairo0RunConfig {
             layout: LayoutName::starknet_with_keccak,
             ..Default::default()
         };
@@ -694,7 +726,7 @@ mod tests {
         let cairo_pie = {
             let runner = cairo_run(
                 include_bytes!("../../cairo_programs/fibonacci.json"),
-                &CairoRunConfig::default(),
+                &Cairo0RunConfig::default(),
                 &mut BuiltinHintProcessor::new_empty(),
             )
             .unwrap();
@@ -703,7 +735,7 @@ mod tests {
         // Run Cairo PIE
         let res = cairo_run_pie(
             &cairo_pie,
-            &CairoRunConfig::default(),
+            &Cairo0RunConfig::default(),
             &mut BuiltinHintProcessor::new_empty(),
         );
         assert!(res.is_err_and(|err| matches!(
@@ -715,7 +747,7 @@ mod tests {
     fn make_cairo_pie(program_content: &[u8]) -> CairoPie {
         let runner = cairo_run(
             program_content,
-            &CairoRunConfig {
+            &Cairo0RunConfig {
                 layout: LayoutName::all_cairo_stwo,
                 ..Default::default()
             },
@@ -746,12 +778,12 @@ mod tests {
         let program = Program::from_bytes(program_content, Some("main")).unwrap();
         let runner = cairo_run_stwo(
             &program,
-            RunnerMode::ExecutionMode,
             &stwo_allowed_builtins(),
             &mut BuiltinHintProcessor::new_empty(),
             ExecutionScopes::new(),
             &StwoCairoRunConfig {
                 disable_trace_padding: false,
+                runner_mode: RunnerMode::ExecutionMode,
                 ..Default::default()
             },
         )
@@ -803,7 +835,7 @@ mod tests {
             .collect();
         let legacy_runner = cairo_run_pie(
             &cairo_pie,
-            &CairoRunConfig {
+            &Cairo0RunConfig {
                 layout: LayoutName::all_cairo_stwo,
                 trace_enabled: true,
                 relocate_mem: true,

@@ -40,6 +40,23 @@ macro_rules! load_cairo_program {
     }};
 }
 
+/// Coerces `value` into a [`MaybeRelocatable`], panicking on failure.
+///
+/// The return type pins the conversion target to [`MaybeRelocatable`], so
+/// callers cannot accidentally infer a different `TryInto` target. `side`
+/// is used purely to disambiguate the panic message (e.g. `"left"` / `"right"`).
+#[track_caller]
+fn coerce_to_mr<T>(value: T, side: &str) -> MaybeRelocatable
+where
+    T: TryInto<MaybeRelocatable>,
+    T::Error: core::fmt::Debug,
+{
+    match value.try_into() {
+        Ok(v) => v,
+        Err(e) => panic!("{side} conversion to MaybeRelocatable failed: {e:?}"),
+    }
+}
+
 /// Asserts that two values are equal after converting both to [`MaybeRelocatable`].
 ///
 /// If the left conversion fails, the panic message says "left conversion … failed".
@@ -52,14 +69,8 @@ where
     R: TryInto<MaybeRelocatable>,
     R::Error: core::fmt::Debug,
 {
-    let left_mr = match left.try_into() {
-        Ok(v) => v,
-        Err(e) => panic!("left conversion to MaybeRelocatable failed: {e:?}"),
-    };
-    let right_mr = match right.try_into() {
-        Ok(v) => v,
-        Err(e) => panic!("right conversion to MaybeRelocatable failed: {e:?}"),
-    };
+    let left_mr = coerce_to_mr(left, "left");
+    let right_mr = coerce_to_mr(right, "right");
     assert_eq!(left_mr, right_mr);
 }
 

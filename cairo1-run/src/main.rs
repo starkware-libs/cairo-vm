@@ -5,6 +5,7 @@ use cairo_lang_compiler::{
 };
 use cairo_vm::cairo_run::{write_encoded_memory, write_encoded_trace};
 use cairo_vm::types::layout::CairoLayoutParams;
+use cairo_vm::vm::vm_core::DEFAULT_MAX_TRACEBACK_ENTRIES;
 use cairo_vm::{
     air_public_input::PublicInputError, types::layout_name::LayoutName,
     vm::errors::trace_errors::TraceError, Felt252,
@@ -143,6 +144,8 @@ fn run(args: impl Iterator<Item = String>) -> Result<Option<String>, Error> {
         finalize_builtins: args.air_public_input.is_some() || args.cairo_pie_output.is_some(),
         append_return_values: args.append_return_values,
         dynamic_layout_params: cairo_layout_params,
+        disable_trace_padding: false,
+        max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
     };
 
     // Try to parse the file as a sierra program
