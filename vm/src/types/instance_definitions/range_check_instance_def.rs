@@ -3,7 +3,7 @@ use serde::Serialize;
 use super::LowRatio;
 pub(crate) const CELLS_PER_RANGE_CHECK: u32 = 1;
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Clone, Serialize, Debug, PartialEq)]
 pub(crate) struct RangeCheckInstanceDef {
     pub(crate) ratio: Option<LowRatio>,
 }

@@ -20,7 +20,7 @@ use crate::Felt252;
 use num_traits::Zero;
 
 use crate::{
-    cairo_run::{cairo_run, CairoRunConfig},
+    cairo_run::{cairo_run, Cairo0RunConfig},
     hint_processor::{
         builtin_hint_processor::{
             builtin_hint_processor_definition::{BuiltinHintProcessor, HintProcessorData},
@@ -324,7 +324,7 @@ fn run_deprecated_cc() {
         include_bytes!("../../../cairo_programs/noretrocompat/starknet_os_deprecated_cc.json");
     let runner = cairo_run(
         program_content,
-        &CairoRunConfig {
+        &Cairo0RunConfig {
             trace_enabled: true,
             ..Default::default()
         },

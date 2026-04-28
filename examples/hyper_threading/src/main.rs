@@ -1,5 +1,5 @@
 use cairo_vm::{
-    cairo_run::{cairo_run_program, CairoRunConfig},
+    cairo_run::{cairo_run_program, Cairo0RunConfig},
     hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
     types::{layout_name::LayoutName, program::Program},
 };
@@ -47,7 +47,7 @@ fn main() {
 
     // Parallel execution of the program processing
     programs.into_par_iter().for_each(|program| {
-        let cairo_run_config = CairoRunConfig {
+        let cairo_run_config = Cairo0RunConfig {
             entrypoint: "main",
             trace_enabled: false,
             relocate_mem: false,

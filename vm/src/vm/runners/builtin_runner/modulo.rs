@@ -810,6 +810,7 @@ mod tests {
     fn test_air_private_input_all_cairo() {
         use crate::{
             air_private_input::{ModInput, ModInputInstance, ModInputMemoryVars, PrivateInput},
+            cairo_run::Cairo0RunConfig,
             hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
             types::layout_name::LayoutName,
             utils::test_utils::Program,
@@ -826,13 +827,16 @@ mod tests {
         let proof_mode = true;
         let mut runner = CairoRunner::new(
             &program,
-            LayoutName::all_cairo,
-            None,
-            proof_mode,
-            false,
-            false,
-        )
-        .unwrap();
+            &Cairo0RunConfig {
+                layout: LayoutName::all_cairo,
+                proof_mode,
+                trace_enabled: false,
+                disable_trace_padding: false,
+                ..Default::default()
+            }
+            .run_config()
+            .unwrap(),
+        );
 
         let end = runner.initialize(false).unwrap();
         // Modify add_mod & mul_mod params
