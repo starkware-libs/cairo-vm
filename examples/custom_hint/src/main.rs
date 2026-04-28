@@ -1,4 +1,4 @@
-use cairo_vm::cairo_run::{cairo_run, CairoRunConfig};
+use cairo_vm::cairo_run::{cairo_run, Cairo0RunConfig};
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor, HintFunc,
 };
@@ -46,7 +46,7 @@ fn main() {
     //Run the cairo program
     cairo_run(
         &buffer,
-        &CairoRunConfig {
+        &Cairo0RunConfig {
             layout: LayoutName::all_cairo,
             ..Default::default()
         },

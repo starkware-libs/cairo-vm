@@ -14,7 +14,7 @@
   - The versions must be the same.
   - You need to update the workspace dependency `cairo-vm`, which
     you can find in the root cargo manifest under the section `[workspace.dependencies]`.
-  - [Here](https://github.com/lambdaclass/cairo-vm/pull/1748/files) is an
+  - [Here](https://github.com/starkware-libs/cairo-vm/pull/1748/files) is an
     example pull request with these changes.
 - [ ] Run `cargo update` and `git add Cargo.lock`
 - [ ] Update `CHANGELOG.md`:
