@@ -714,7 +714,7 @@ impl From<ModBuiltinRunner> for BuiltinRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cairo_run::{cairo_run, CairoRunConfig};
+    use crate::cairo_run::{cairo_run, Cairo0RunConfig};
     use crate::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor;
     use crate::relocatable;
     use crate::types::builtin_name::BuiltinName;
@@ -892,7 +892,7 @@ mod tests {
         let program_files = vec![PEDERSEN_TEST, BIGINT_TEST, POSEIDON_HASH_TEST];
 
         for program_data in program_files {
-            let config_false = CairoRunConfig {
+            let config_false = Cairo0RunConfig {
                 disable_trace_padding: false,
                 proof_mode: true,
                 fill_holes: true,
@@ -906,7 +906,7 @@ mod tests {
 
             assert!(last_step_false.is_power_of_two());
 
-            let config_true = CairoRunConfig {
+            let config_true = Cairo0RunConfig {
                 disable_trace_padding: true,
                 proof_mode: true,
                 fill_holes: true,

@@ -25,13 +25,13 @@ mod tests {
 
     /// Returns 1 for a known quadratic residue: 4 = 2² mod CAIRO_PRIME.
     #[test]
-    fn is_quad_residue_mod_prime_returns_1_for_residue() {
+    fn test_quad_residue_mod_prime_returns_1_for_residue() {
         assert_eq!(is_quad_residue_mod_prime(&BigUint::from(4u32)), 1);
     }
 
     /// Returns 0 for a known non-residue: 3 is not a square mod CAIRO_PRIME.
     #[test]
-    fn is_quad_residue_mod_prime_returns_0_for_non_residue() {
+    fn test_quad_residue_mod_prime_returns_0_for_non_residue() {
         assert_eq!(is_quad_residue_mod_prime(&BigUint::from(3u32)), 0);
     }
 }

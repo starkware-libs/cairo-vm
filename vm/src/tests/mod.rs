@@ -17,7 +17,7 @@ use crate::{
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 
 use crate::{
-    cairo_run::{cairo_run, CairoRunConfig},
+    cairo_run::{cairo_run, Cairo0RunConfig},
     hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
 };
 
@@ -66,7 +66,7 @@ fn run_program(
     error: Option<&str>,
 ) {
     let mut hint_executor = BuiltinHintProcessor::new_empty();
-    let cairo_run_config = CairoRunConfig {
+    let cairo_run_config = Cairo0RunConfig {
         layout: layout.unwrap_or(LayoutName::all_cairo),
         relocate_mem: true,
         trace_enabled: true,
@@ -110,13 +110,16 @@ fn run_cairo_1_entrypoint(
 
     let mut runner = CairoRunner::new(
         &(contract_class.clone().try_into().unwrap()),
-        LayoutName::all_cairo,
-        None,
-        false,
-        false,
-        false,
-    )
-    .unwrap();
+        &Cairo0RunConfig {
+            layout: LayoutName::all_cairo,
+            proof_mode: false,
+            trace_enabled: false,
+            disable_trace_padding: false,
+            ..Default::default()
+        }
+        .run_config()
+        .unwrap(),
+    );
 
     let program_builtins = get_casm_contract_builtins(&contract_class, entrypoint_offset);
     runner
@@ -218,13 +221,16 @@ fn run_cairo_1_entrypoint_with_run_resources(
 ) -> Result<Vec<Felt252>, CairoRunError> {
     let mut runner = CairoRunner::new(
         &(contract_class.clone().try_into().unwrap()),
-        LayoutName::all_cairo,
-        None,
-        false,
-        false,
-        false,
-    )
-    .unwrap();
+        &Cairo0RunConfig {
+            layout: LayoutName::all_cairo,
+            proof_mode: false,
+            trace_enabled: false,
+            disable_trace_padding: false,
+            ..Default::default()
+        }
+        .run_config()
+        .unwrap(),
+    );
 
     let program_builtins = get_casm_contract_builtins(&contract_class, entrypoint_offset);
     runner

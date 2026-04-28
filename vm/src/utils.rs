@@ -233,7 +233,7 @@ pub mod test_utils {
 
     macro_rules! vm_with_range_check {
         () => {{
-            let mut vm = VirtualMachine::new(false, false);
+            let mut vm = VirtualMachine::default();
             vm.builtin_runners = vec![
                 $crate::vm::runners::builtin_runner::RangeCheckBuiltinRunner::<8>::new(
                     Some(8),
@@ -250,41 +250,58 @@ pub mod test_utils {
         ($program:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
                 &$program,
-                crate::types::layout_name::LayoutName::all_cairo,
-                None,
-                false,
-                false,
-                false,
+                &crate::cairo_run::Cairo0RunConfig {
+                    layout: crate::types::layout_name::LayoutName::all_cairo,
+                    proof_mode: false,
+                    trace_enabled: false,
+                    disable_trace_padding: false,
+                    ..Default::default()
+                }
+                .run_config()
+                .unwrap(),
             )
-            .unwrap()
         };
         ($program:expr, $layout:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
-                &$program, $layout, None, false, false, false,
+                &$program,
+                &crate::cairo_run::Cairo0RunConfig {
+                    layout: $layout,
+                    proof_mode: false,
+                    trace_enabled: false,
+                    disable_trace_padding: false,
+                    ..Default::default()
+                }
+                .run_config()
+                .unwrap(),
             )
-            .unwrap()
         };
         ($program:expr, $layout:expr, $proof_mode:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
                 &$program,
-                $layout,
-                None,
-                $proof_mode,
-                false,
-                false,
+                &crate::cairo_run::Cairo0RunConfig {
+                    layout: $layout,
+                    proof_mode: $proof_mode,
+                    trace_enabled: false,
+                    disable_trace_padding: false,
+                    ..Default::default()
+                }
+                .run_config()
+                .unwrap(),
             )
-            .unwrap()
         };
         ($program:expr, $layout:expr, $proof_mode:expr, $trace_enabled:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
                 &$program,
-                $layout,
-                None,
-                $proof_mode,
-                $trace_enabled,
-                false,
+                &crate::cairo_run::Cairo0RunConfig {
+                    layout: $layout,
+                    proof_mode: $proof_mode,
+                    trace_enabled: $trace_enabled,
+                    disable_trace_padding: false,
+                    ..Default::default()
+                }
+                .run_config()
+                .unwrap(),
             )
-            .unwrap()
         };
     }
     pub(crate) use cairo_runner;
@@ -401,11 +418,14 @@ pub mod test_utils {
 
     macro_rules! vm {
         () => {{
-            crate::vm::vm_core::VirtualMachine::new(false, false)
+            crate::vm::vm_core::VirtualMachine::default()
         }};
 
         ($use_trace:expr) => {{
-            crate::vm::vm_core::VirtualMachine::new($use_trace, false)
+            crate::vm::vm_core::VirtualMachine::new(&crate::vm::vm_core::VirtualMachineConfig {
+                trace_enabled: $use_trace,
+                ..Default::default()
+            })
         }};
     }
     pub(crate) use vm;
