@@ -1,9 +1,9 @@
-use crate::types::relocatable::MaybeRelocatable;
-use crate::types::{errors::math_errors::MathError, relocatable::Relocatable};
-use crate::vm::errors::{hint_errors::HintError, vm_errors::VirtualMachineError};
-use crate::vm::vm_core::VirtualMachine;
-use crate::Felt252;
 use cairo_lang_casm::operand::{CellRef, DerefOrImmediate, Operation, Register, ResOperand};
+use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::types::{errors::math_errors::MathError, relocatable::Relocatable};
+use cairo_vm::vm::errors::{hint_errors::HintError, vm_errors::VirtualMachineError};
+use cairo_vm::vm::vm_core::VirtualMachine;
+use cairo_vm::Felt252;
 
 /// Extracts a parameter assumed to be a buffer.
 pub(crate) fn extract_buffer(buffer: &ResOperand) -> Result<(&CellRef, Felt252), HintError> {

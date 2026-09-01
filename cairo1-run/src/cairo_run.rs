@@ -37,8 +37,8 @@ use cairo_lang_utils::{
 use cairo_vm::vm::{runners::cairo_runner::CairoRunConfig, vm_core::DEFAULT_MAX_TRACEBACK_ENTRIES};
 use std::{collections::HashMap, iter::Peekable};
 
+use cairo1_hint_processor::hint_processor::Cairo1HintProcessor;
 use cairo_vm::{
-    hint_processor::cairo_1_hint_processor::hint_processor::Cairo1HintProcessor,
     math_utils::signed_felt,
     serde::deserialize_program::{ApTracking, FlowTrackingData, HintParams, ReferenceManager},
     types::{

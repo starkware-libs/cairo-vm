@@ -9,12 +9,6 @@ readme.workspace = true
 keywords.workspace = true
 
 [features]
-cairo-1-hints = [
-    "dep:cairo-lang-casm",
-    "dep:cairo-lang-starknet-classes",
-    "dep:ark-ff",
-    "dep:ark-std",
-]
 tracer = []
 cairo-0-secp-hints = []
 cairo-0-data-availability-hints = []
@@ -49,12 +43,6 @@ rust_decimal = { version = "1.35.0", default-features = false }
 
 num-prime = { version = "0.4.3", features = ["big-int"] }
 bitvec = { workspace = true }
-
-# Dependencies for cairo-1-hints feature
-cairo-lang-starknet-classes = { workspace = true, optional = true }
-cairo-lang-casm = { workspace = true, optional = true }
-ark-ff = { workspace = true, optional = true }
-ark-std = { workspace = true, optional = true }
 
 # Enable arbitrary when fuzzing
 arbitrary = { workspace = true, features = ["derive"], optional = true }

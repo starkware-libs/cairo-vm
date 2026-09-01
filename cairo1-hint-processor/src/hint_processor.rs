@@ -6,19 +6,7 @@
 use super::circuit;
 use super::dict_manager::DictManagerExecScope;
 use super::hint_processor_utils::*;
-use crate::any_box;
-use crate::hint_processor::cairo_1_hint_processor::dict_manager::DictSquashExecScope;
-use crate::hint_processor::hint_processor_definition::HintReference;
-use crate::types::relocatable::{MaybeRelocatable, Relocatable};
-use crate::vm::runners::cairo_runner::ResourceTracker;
-use crate::vm::runners::cairo_runner::RunResources;
-use crate::Felt252;
-use crate::{
-    hint_processor::hint_processor_definition::HintProcessorLogic,
-    types::{errors::math_errors::MathError, exec_scope::ExecutionScopes},
-    vm::errors::vm_errors::VirtualMachineError,
-    vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
-};
+use crate::dict_manager::DictSquashExecScope;
 use ark_ff::fields::{Fp256, MontBackend, MontConfig};
 use ark_ff::{Field, PrimeField};
 use ark_std::UniformRand;
@@ -26,6 +14,18 @@ use cairo_lang_casm::hints::{CoreHintBase, DeprecatedHint, StarknetHint};
 use cairo_lang_casm::{
     hints::{CoreHint, Hint},
     operand::{CellRef, ResOperand},
+};
+use cairo_vm::any_box;
+use cairo_vm::hint_processor::hint_processor_definition::HintReference;
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
+use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
+use cairo_vm::vm::runners::cairo_runner::RunResources;
+use cairo_vm::Felt252;
+use cairo_vm::{
+    hint_processor::hint_processor_definition::HintProcessorLogic,
+    types::{errors::math_errors::MathError, exec_scope::ExecutionScopes},
+    vm::errors::vm_errors::VirtualMachineError,
+    vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
 };
 use core::any::Any;
 use core::ops::Shl;
@@ -1257,7 +1257,7 @@ impl HintProcessorLogic for Cairo1HintProcessor {
         //Block of hint code as String
         hint_code: &str,
         //Ap Tracking Data corresponding to the Hint
-        _ap_tracking_data: &crate::serde::deserialize_program::ApTracking,
+        _ap_tracking_data: &cairo_vm::serde::deserialize_program::ApTracking,
         //Map from variable name to reference id number
         //(may contain other variables aside from those used by the hint)
         _reference_ids: &HashMap<String, usize>,

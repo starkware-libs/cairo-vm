@@ -5,10 +5,10 @@ use num_traits::One;
 
 use std::collections::HashMap;
 
-use crate::types::relocatable::MaybeRelocatable;
-use crate::vm::errors::hint_errors::HintError;
-use crate::Felt252;
-use crate::{types::relocatable::Relocatable, vm::vm_core::VirtualMachine};
+use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::Felt252;
+use cairo_vm::{types::relocatable::Relocatable, vm::vm_core::VirtualMachine};
 
 /// Stores the data of a specific dictionary.
 pub struct DictTrackerExecScope {
@@ -242,8 +242,8 @@ impl DictSquashExecScope {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::relocatable::Relocatable;
-    use crate::vm::vm_core::VirtualMachine;
+    use cairo_vm::types::relocatable::Relocatable;
+    use cairo_vm::vm::vm_core::VirtualMachine;
     use std::collections::HashMap;
 
     /// Test for relocate_all_dictionaries error cases
