@@ -296,9 +296,9 @@ ifdef TEST_COLLECT_COVERAGE
 endif
 
 test: cairo_proof_programs cairo_test_programs cairo_test_suite_programs cairo_1_test_contracts cairo_2_test_contracts cairo_1_program
-	$(TEST_COMMAND) --workspace --features "test_utils, cairo-1-hints"
+	$(TEST_COMMAND) --workspace --features "test_utils"
 test-extensive_hints: cairo_proof_programs cairo_test_programs cairo_1_test_contracts cairo_1_program cairo_2_test_contracts 
-	$(TEST_COMMAND) --workspace --features "test_utils, cairo-1-hints, cairo-0-secp-hints, cairo-0-data-availability-hints, extensive_hints"
+	$(TEST_COMMAND) --workspace --features "test_utils, cairo-0-secp-hints, cairo-0-data-availability-hints, extensive_hints"
 
 check-fmt:
 	cargo fmt --all -- --check
@@ -309,7 +309,7 @@ clippy:
 	cargo clippy --manifest-path fuzzer/Cargo.toml --all-targets
 
 coverage: cairo_proof_programs cairo_test_programs cairo_1_test_contracts cairo_1_program cairo_2_test_contracts
-	cargo llvm-cov --html --workspace --features "test_utils, cairo-1-hints"
+	cargo llvm-cov --html --workspace --features "test_utils"
 
 coverage-clean:
 	cargo llvm-cov clean

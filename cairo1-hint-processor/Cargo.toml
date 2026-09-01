@@ -1,0 +1,31 @@
+[package]
+name = "cairo1-hint-processor"
+description = "HintProcessor for the hints introduced by the Cairo 1 compiler"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+
+[features]
+# Allows extending the set of hints for the current vm run from within a hint.
+extensive_hints = ["cairo-vm/extensive_hints"]
+
+[dependencies]
+cairo-vm.workspace = true
+
+cairo-lang-casm.workspace = true
+cairo-lang-starknet-classes.workspace = true
+
+ark-ff = { workspace = true }
+ark-std = { workspace = true }
+num-bigint = { workspace = true }
+num-integer = { workspace = true }
+num-traits = { workspace = true }
+
+[dev-dependencies]
+cairo-vm = { workspace = true, features = ["test_utils"] }
+assert_matches = "1.5.0"
+rstest = { version = "0.17.0", default-features = false }
+serde_json = { workspace = true }

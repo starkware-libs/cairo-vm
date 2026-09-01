@@ -10,6 +10,7 @@ The repository is a Cargo workspace with these crates:
 - `cairo-vm-cli/` — CLI binary for running compiled Cairo 0 programs (JSON format).
 - `cairo1-run/` — CLI binary for compiling and running Cairo 1 programs. Depends on the Cairo compiler crates.
 - `cairo-vm-tracer/` — Library for the web-based execution tracer. Used by `cairo-vm-cli` when the `tracer` feature is enabled. See [tracer docs](./tracer/).
+- `cairo1-hint-processor/` — `HintProcessor` for the hints the Cairo 1 compiler emits. The only crate besides `cairo1-run` that depends on `cairo-lang-*`.
 - `hint_accountant/` — Dev tool that reports which hints from `cairo-lang` are implemented and which are missing.
 - `examples/` — Usage examples: WASM demo, hyper-threading benchmarks, custom hint processor.
 - `fuzzer/` — Fuzz testing and differential fuzzing against the Python VM.
@@ -40,7 +41,6 @@ The core crate has these top-level modules:
 The `vm` crate has several feature flags that control compilation:
 
 - `std` (default) — Standard library support. Disable for `no_std`/WASM targets.
-- `cairo-1-hints` — Enables the Cairo 1 hint processor. Pulls in `cairo-lang-casm` and ark dependencies.
 - `cairo-0-secp-hints` — Enables secp256k1/secp256r1 hint implementations for Cairo 0.
 - `cairo-0-data-availability-hints` — Enables data availability-related hints for Cairo 0.
 - `extensive_hints` — Allows extending the hint set at runtime from within a hint.

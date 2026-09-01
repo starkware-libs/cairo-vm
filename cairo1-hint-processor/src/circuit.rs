@@ -4,12 +4,12 @@
 use core::ops::Deref;
 
 use ark_ff::{One, Zero};
+use cairo_vm::Felt252 as Felt;
 use num_bigint::{BigInt, BigUint, ToBigInt};
 use num_integer::Integer;
 use num_traits::Signed;
-use starknet_types_core::felt::Felt;
 
-use crate::{
+use cairo_vm::{
     types::relocatable::{MaybeRelocatable, Relocatable},
     vm::{
         errors::{hint_errors::HintError, memory_errors::MemoryError},
