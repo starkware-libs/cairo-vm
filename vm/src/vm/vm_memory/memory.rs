@@ -17,6 +17,17 @@ pub struct ValidationRule(
     pub  Box<dyn Fn(&Memory, Relocatable) -> Result<Vec<Relocatable>, MemoryError>>,
 );
 
+/// Internal representation of validation rules: common built-in rules get a
+/// dedicated variant that can be checked inline, without going through a boxed
+/// closure or allocating the resulting address list.
+enum InnerValidationRule {
+    Closure(ValidationRule),
+    /// Value must be a felt of at most `n_bits` bits.
+    RangeCheck {
+        n_bits: u64,
+    },
+}
+
 /// [`MemoryCell`] represents an optimized storage layout for the VM memory.
 /// It's specified to have both size an alignment of 32 bytes to optimize cache access.
 /// Typical cache sizes are 64 bytes, a few cases might be 128 bytes, meaning 32 bytes aligned to
@@ -172,7 +183,7 @@ pub struct Memory {
     #[cfg(feature = "extensive_hints")]
     pub(crate) relocation_rules: HashMap<usize, MaybeRelocatable>,
     pub validated_addresses: AddressSet,
-    validation_rules: Vec<Option<ValidationRule>>,
+    validation_rules: Vec<Option<InnerValidationRule>>,
 }
 
 impl Memory {
@@ -207,8 +218,16 @@ impl Memory {
         MaybeRelocatable: From<V>,
     {
         let val = MaybeRelocatable::from(val);
-        let segment = self.get_segment(key)?;
-        let (_, value_offset) = from_relocatable_to_indexes(key);
+        let (value_index, value_offset) = from_relocatable_to_indexes(key);
+        let data = if key.segment_index.is_negative() {
+            &mut self.temp_data
+        } else {
+            &mut self.data
+        };
+        let data_len = data.len();
+        let segment = data
+            .get_mut(value_index)
+            .ok_or_else(|| MemoryError::UnallocatedSegment(Box::new((value_index, data_len))))?;
 
         //Check if the element is inserted next to the last one on the segment
         //Forgoing this check would allow data to be inserted in a different index
@@ -269,7 +288,19 @@ impl Memory {
             .get_segment_cells(relocatable.segment_index)?
             .get(relocatable.offset)?
             .get_value()?;
-        Some(Cow::Owned(self.relocate_value(&value).ok()?.into_owned()))
+        // Only values pointing into a temporary segment can be affected by relocation rules,
+        // so skip the relocation machinery for everything else.
+        Some(match value {
+            MaybeRelocatable::RelocatableValue(addr) if addr.segment_index < 0 => {
+                #[cfg(not(feature = "extensive_hints"))]
+                let v = self.relocate_value(addr).ok()?.into();
+                #[cfg(feature = "extensive_hints")]
+                let v = self.relocate_value(addr).ok()?;
+
+                Cow::Owned(v)
+            }
+            value => Cow::Owned(value),
+        })
     }
 
     // Version of Memory.relocate_value() that doesn't require a self reference
@@ -577,6 +608,17 @@ impl Memory {
     }
 
     pub fn add_validation_rule(&mut self, segment_index: usize, rule: ValidationRule) {
+        self.add_inner_validation_rule(segment_index, InnerValidationRule::Closure(rule));
+    }
+
+    /// Adds a range-check validation rule for the given segment: every value inserted into it
+    /// must be a felt of at most `n_bits` bits. Checked inline, avoiding the allocations of the
+    /// closure-based rules.
+    pub(crate) fn add_range_check_validation_rule(&mut self, segment_index: usize, n_bits: u64) {
+        self.add_inner_validation_rule(segment_index, InnerValidationRule::RangeCheck { n_bits });
+    }
+
+    fn add_inner_validation_rule(&mut self, segment_index: usize, rule: InnerValidationRule) {
         if segment_index >= self.validation_rules.len() {
             // Fill gaps
             self.validation_rules
@@ -586,34 +628,47 @@ impl Memory {
     }
 
     fn validate_memory_cell(&mut self, addr: Relocatable) -> Result<(), MemoryError> {
-        if let Some(Some(rule)) = addr
+        match addr
             .segment_index
             .to_usize()
             .and_then(|x| self.validation_rules.get(x))
         {
-            if !self.validated_addresses.contains(&addr) {
-                self.validated_addresses
-                    .extend(rule.0(self, addr)?.as_slice());
+            Some(Some(InnerValidationRule::RangeCheck { n_bits })) => {
+                let n_bits = *n_bits;
+                if !self.validated_addresses.contains(&addr) {
+                    let num = self
+                        .get_integer(addr)
+                        .map_err(|_| MemoryError::RangeCheckFoundNonInt(Box::new(addr)))?
+                        .into_owned();
+                    if num.bits() as u64 > n_bits {
+                        return Err(MemoryError::RangeCheckNumOutOfBounds(Box::new((
+                            num,
+                            Felt252::TWO.pow(n_bits as u128),
+                        ))));
+                    }
+                    self.validated_addresses.extend(&[addr]);
+                }
             }
+            Some(Some(InnerValidationRule::Closure(rule))) => {
+                if !self.validated_addresses.contains(&addr) {
+                    self.validated_addresses
+                        .extend(rule.0(self, addr)?.as_slice());
+                }
+            }
+            _ => {}
         }
         Ok(())
     }
 
     ///Applies validation_rules to the current memory
     pub fn validate_existing_memory(&mut self) -> Result<(), MemoryError> {
-        for (index, rule) in self.validation_rules.iter().enumerate() {
-            if index >= self.data.len() {
+        for index in 0..self.validation_rules.len() {
+            if index >= self.data.len() || self.validation_rules[index].is_none() {
                 continue;
             }
-            let Some(rule) = rule else {
-                continue;
-            };
             for offset in 0..self.data[index].len() {
                 let addr = Relocatable::from((index as isize, offset));
-                if !self.validated_addresses.contains(&addr) {
-                    self.validated_addresses
-                        .extend(rule.0(self, addr)?.as_slice());
-                }
+                self.validate_memory_cell(addr)?;
             }
         }
         Ok(())
