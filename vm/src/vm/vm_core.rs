@@ -260,11 +260,11 @@ impl VirtualMachine {
     fn update_registers(
         &mut self,
         instruction: &Instruction,
-        operands: Operands,
+        operands: &Operands,
     ) -> Result<(), VirtualMachineError> {
-        self.update_fp(instruction, &operands)?;
-        self.update_ap(instruction, &operands)?;
-        self.update_pc(instruction, &operands)?;
+        self.update_fp(instruction, operands)?;
+        self.update_ap(instruction, operands)?;
+        self.update_pc(instruction, operands)?;
         Ok(())
     }
 
@@ -319,7 +319,7 @@ impl VirtualMachine {
         &self,
         instruction: &Instruction,
         dst: Option<&MaybeRelocatable>,
-        op0: Option<MaybeRelocatable>,
+        op0: Option<&MaybeRelocatable>,
     ) -> Result<(Option<MaybeRelocatable>, Option<MaybeRelocatable>), VirtualMachineError> {
         if let Opcode::AssertEq = instruction.opcode {
             match instruction.res {
@@ -327,7 +327,7 @@ impl VirtualMachine {
                 Res::Add => {
                     return Ok((
                         dst.zip(op0).and_then(|(dst, op0)| {
-                            typed_sub(dst, &op0, instruction.opcode_extension).ok()
+                            typed_sub(dst, op0, instruction.opcode_extension).ok()
                         }),
                         dst.cloned(),
                     ))
@@ -337,7 +337,7 @@ impl VirtualMachine {
                         Some(MaybeRelocatable::Int(num_dst)),
                         Some(MaybeRelocatable::Int(num_op0)),
                     ) if !num_op0.is_zero() => {
-                        let num_op1 = typed_div(num_dst, &num_op0, instruction.opcode_extension)?;
+                        let num_op1 = typed_div(num_dst, num_op0, instruction.opcode_extension)?;
                         return Ok((Some(MaybeRelocatable::Int(num_op1)), dst.cloned()));
                     }
                     _ => (),
@@ -515,7 +515,7 @@ impl VirtualMachine {
                 .or_insert(0) += 1;
         }
 
-        self.update_registers(instruction, operands)?;
+        self.update_registers(instruction, &operands)?;
         self.current_step += 1;
 
         Ok(())
@@ -612,7 +612,7 @@ impl VirtualMachine {
     }
 
     pub fn step_instruction(&mut self) -> Result<(), VirtualMachineError> {
-        if self.run_context.pc.segment_index == 0 {
+        let instruction = if self.run_context.pc.segment_index == 0 {
             // Run instructions from program segment, using instruction cache
             let pc = self.run_context.pc.offset;
 
@@ -620,32 +620,27 @@ impl VirtualMachine {
                 return Err(MemoryError::UnknownMemoryCell(Box::new((0, pc).into())))?;
             }
 
-            let mut inst_cache = core::mem::take(&mut self.instruction_cache);
-            inst_cache.resize((pc + 1).max(inst_cache.len()), None);
-
-            let instruction = inst_cache.get_mut(pc).unwrap();
-            if instruction.is_none() {
-                *instruction = Some(self.decode_current_instruction()?);
+            if self.instruction_cache.len() <= pc {
+                self.instruction_cache.resize(pc + 1, None);
             }
-            let instruction = instruction.as_ref().unwrap();
-
-            if !self.skip_instruction_execution {
-                self.run_instruction(instruction)?;
-            } else {
-                self.run_context.pc += instruction.size();
-                self.skip_instruction_execution = false;
+            match self.instruction_cache[pc] {
+                Some(instruction) => instruction,
+                None => {
+                    let instruction = self.decode_current_instruction()?;
+                    self.instruction_cache[pc] = Some(instruction);
+                    instruction
+                }
             }
-            self.instruction_cache = inst_cache;
         } else {
             // Run instructions from programs loaded in other segments, without instruction cache
-            let instruction = self.decode_current_instruction()?;
+            self.decode_current_instruction()?
+        };
 
-            if !self.skip_instruction_execution {
-                self.run_instruction(&instruction)?;
-            } else {
-                self.run_context.pc += instruction.size();
-                self.skip_instruction_execution = false;
-            }
+        if !self.skip_instruction_execution {
+            self.run_instruction(&instruction)?;
+        } else {
+            self.run_context.pc += instruction.size();
+            self.skip_instruction_execution = false;
         }
         Ok(())
     }
@@ -701,7 +696,7 @@ impl VirtualMachine {
         let op1_op = match self.deduce_memory_cell(op1_addr)? {
             None => {
                 let (op1, deduced_res) =
-                    self.deduce_op1(instruction, dst_op.as_ref(), Some(op0.clone()))?;
+                    self.deduce_op1(instruction, dst_op.as_ref(), Some(op0))?;
                 if res.is_none() {
                     *res = deduced_res
                 }
@@ -2141,7 +2136,7 @@ mod tests {
         vm.run_context.fp = 6;
 
         assert_matches!(
-            vm.update_registers(&instruction, operands),
+            vm.update_registers(&instruction, &operands),
             Ok::<(), VirtualMachineError>(())
         );
         assert_eq!(vm.run_context.pc, Relocatable::from((0, 5)));
@@ -2177,7 +2172,7 @@ mod tests {
         run_context!(vm, 4, 5, 6);
 
         assert_matches!(
-            vm.update_registers(&instruction, operands),
+            vm.update_registers(&instruction, &operands),
             Ok::<(), VirtualMachineError>(())
         );
         assert_eq!(vm.run_context.pc, Relocatable::from((0, 12)));
@@ -2547,7 +2542,7 @@ mod tests {
         let dst = MaybeRelocatable::Int(Felt252::from(3));
         let op0 = MaybeRelocatable::Int(Felt252::from(2));
         assert_matches!(
-            vm.deduce_op1(&instruction, Some(&dst), Some(op0)),
+            vm.deduce_op1(&instruction, Some(&dst), Some(&op0)),
             Ok::<(Option<MaybeRelocatable>, Option<MaybeRelocatable>), VirtualMachineError>((
                 x,
                 y
@@ -2604,7 +2599,7 @@ mod tests {
         let dst = MaybeRelocatable::Int(Felt252::from(4));
         let op0 = MaybeRelocatable::Int(Felt252::from(2));
         assert_matches!(
-            vm.deduce_op1(&instruction, Some(&dst), Some(op0)),
+            vm.deduce_op1(&instruction, Some(&dst), Some(&op0)),
             Ok::<(Option<MaybeRelocatable>, Option<MaybeRelocatable>), VirtualMachineError>((
                 x,
                 y
@@ -2635,7 +2630,7 @@ mod tests {
         let dst = MaybeRelocatable::Int(Felt252::from(4));
         let op0 = MaybeRelocatable::Int(Felt252::from(0));
         assert_matches!(
-            vm.deduce_op1(&instruction, Some(&dst), Some(op0)),
+            vm.deduce_op1(&instruction, Some(&dst), Some(&op0)),
             Ok::<(Option<MaybeRelocatable>, Option<MaybeRelocatable>), VirtualMachineError>((
                 None, None
             ))
@@ -2663,7 +2658,7 @@ mod tests {
 
         let op0 = MaybeRelocatable::Int(Felt252::from(0));
         assert_matches!(
-            vm.deduce_op1(&instruction, None, Some(op0)),
+            vm.deduce_op1(&instruction, None, Some(&op0)),
             Ok::<(Option<MaybeRelocatable>, Option<MaybeRelocatable>), VirtualMachineError>((
                 None, None
             ))
@@ -2724,7 +2719,7 @@ mod tests {
         let op0 = MaybeRelocatable::Int(op0_qm31.pack_into_felt());
         let dst = MaybeRelocatable::Int(dst_qm31.pack_into_felt());
         assert_matches!(
-            vm.deduce_op1(&instruction, Some(&dst), Some(op0)),
+            vm.deduce_op1(&instruction, Some(&dst), Some(&op0)),
             Ok::<(Option<MaybeRelocatable>, Option<MaybeRelocatable>), VirtualMachineError>((
                 x,
                 y
@@ -2757,7 +2752,7 @@ mod tests {
         let op0 = MaybeRelocatable::Int(op0_qm31.pack_into_felt());
         let dst = MaybeRelocatable::Int(dst_qm31.pack_into_felt());
         assert_matches!(
-            vm.deduce_op1(&instruction, Some(&dst), Some(op0)),
+            vm.deduce_op1(&instruction, Some(&dst), Some(&op0)),
             Ok::<(Option<MaybeRelocatable>, Option<MaybeRelocatable>), VirtualMachineError>((
                 x,
                 y
@@ -2788,7 +2783,7 @@ mod tests {
         let op0 = MaybeRelocatable::Int(Felt252::from(4));
         let dst = MaybeRelocatable::Int(Felt252::from(16));
         assert_matches!(
-            vm.deduce_op1(&instruction, Some(&dst), Some(op0)),
+            vm.deduce_op1(&instruction, Some(&dst), Some(&op0)),
             Err(VirtualMachineError::InvalidTypedOperationOpcodeExtension(ref message)) if message.as_ref() == "typed_div"
         );
     }

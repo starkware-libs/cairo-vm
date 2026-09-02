@@ -7,13 +7,10 @@ use crate::{
 
 use crate::Felt252;
 use crate::{
-    types::relocatable::{MaybeRelocatable, Relocatable},
+    types::relocatable::MaybeRelocatable,
     vm::{
         errors::memory_errors::MemoryError,
-        vm_memory::{
-            memory::{Memory, ValidationRule},
-            memory_segments::MemorySegmentManager,
-        },
+        vm_memory::{memory::Memory, memory_segments::MemorySegmentManager},
     },
 };
 
@@ -104,22 +101,7 @@ impl<const N_PARTS: u64> RangeCheckBuiltinRunner<N_PARTS> {
     }
 
     pub fn add_validation_rule(&self, memory: &mut Memory) {
-        let rule = ValidationRule(Box::new(
-            |memory: &Memory, address: Relocatable| -> Result<Vec<Relocatable>, MemoryError> {
-                let num = memory
-                    .get_integer(address)
-                    .map_err(|_| MemoryError::RangeCheckFoundNonInt(Box::new(address)))?;
-                if num.bits() as u64 <= N_PARTS * INNER_RC_BOUND_SHIFT {
-                    Ok(vec![address.to_owned()])
-                } else {
-                    Err(MemoryError::RangeCheckNumOutOfBounds(Box::new((
-                        num.into_owned(),
-                        Felt252::TWO.pow((N_PARTS * INNER_RC_BOUND_SHIFT) as u128),
-                    ))))
-                }
-            },
-        ));
-        memory.add_validation_rule(self.base, rule);
+        memory.add_range_check_validation_rule(self.base, N_PARTS * INNER_RC_BOUND_SHIFT);
     }
 
     pub fn get_used_cells(&self, segments: &MemorySegmentManager) -> Result<usize, MemoryError> {
@@ -179,6 +161,7 @@ mod tests {
     use super::*;
     use crate::relocatable;
     use crate::types::builtin_name::BuiltinName;
+    use crate::types::relocatable::Relocatable;
     use crate::vm::errors::runner_errors::RunnerError;
     use crate::vm::vm_memory::memory::Memory;
     use crate::{

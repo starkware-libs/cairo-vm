@@ -199,14 +199,18 @@ impl HintProcessorLogic for BuiltinHintProcessor {
             .ok_or(HintError::WrongHintData)?;
         let constants = hint_data.constants.as_ref();
 
-        if let Some(hint_func) = self.extra_hints.get(&hint_data.code) {
-            return hint_func.0(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-                constants,
-            );
+        // Hashing the full hint code on every execution is expensive; skip the lookup entirely
+        // in the common case where no extra hints were registered.
+        if !self.extra_hints.is_empty() {
+            if let Some(hint_func) = self.extra_hints.get(&hint_data.code) {
+                return hint_func.0(
+                    vm,
+                    exec_scopes,
+                    &hint_data.ids_data,
+                    &hint_data.ap_tracking,
+                    constants,
+                );
+            }
         }
         match &*hint_data.code {
             hint_code::ADD_SEGMENT => add_segment(vm),
