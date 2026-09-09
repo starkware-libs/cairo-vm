@@ -844,17 +844,6 @@ impl CairoRunner {
             .hints_collection
             .hints_ranges
             .clone();
-        #[cfg(not(feature = "extensive_hints"))]
-        let hint_data = &self
-            .program
-            .shared_program_data
-            .hints_collection
-            .get_hint_range_for_pc(self.vm.get_pc().offset)
-            .and_then(|range| {
-                range.and_then(|(start, length)| hint_data.get(start..start + length.get()))
-            })
-            .unwrap_or(&[]);
-
         for remaining_steps in (1..=steps).rev() {
             if self.final_pc.as_ref() == Some(&self.vm.get_pc()) {
                 return Err(VirtualMachineError::EndOfProgram(remaining_steps));
@@ -866,7 +855,14 @@ impl CairoRunner {
                 #[cfg(feature = "extensive_hints")]
                 &mut hint_data,
                 #[cfg(not(feature = "extensive_hints"))]
-                hint_data,
+                self.program
+                    .shared_program_data
+                    .hints_collection
+                    .get_hint_range_for_pc(self.vm.get_pc().offset)
+                    .and_then(|range| {
+                        range.and_then(|(start, length)| hint_data.get(start..start + length.get()))
+                    })
+                    .unwrap_or(&[]),
                 #[cfg(feature = "extensive_hints")]
                 &mut hint_ranges,
                 #[cfg(feature = "test_utils")]
@@ -3496,6 +3492,48 @@ mod tests {
             cairo_runner.run_for_steps(8, &mut hint_processor),
             Err(VirtualMachineError::EndOfProgram(x)) if x == 8 - 2
         );
+    }
+
+    #[test]
+    /* Program used:
+    [ap] = 1, ap++;
+    %{ vm_enter_scope() %}  // hint attached to the second instruction (pc 2)
+    [ap] = 2, ap++;
+    ret
+    */
+    fn run_for_steps_executes_hints_of_non_entry_pcs() {
+        let program = program!(
+            data = vec_data!(
+                (5189976364521848832_i64),
+                (1),
+                (5189976364521848832_i64),
+                (2),
+                (2345108766317314046_i64)
+            ),
+            hints = std::collections::BTreeMap::from([(
+                2_usize,
+                vec![crate::serde::deserialize_program::HintParams {
+                    code: "vm_enter_scope()".to_string(),
+                    accessible_scopes: Vec::new(),
+                    flow_tracking_data: crate::serde::deserialize_program::FlowTrackingData {
+                        ap_tracking: crate::serde::deserialize_program::ApTracking::new(),
+                        reference_ids: HashMap::new(),
+                    },
+                }],
+            )]),
+            main = Some(0),
+        );
+
+        let mut hint_processor = BuiltinHintProcessor::new_empty();
+        let mut cairo_runner = cairo_runner!(program, LayoutName::all_cairo, false, true);
+        cairo_runner.initialize_segments(None);
+        cairo_runner.initialize_main_entrypoint().unwrap();
+        cairo_runner.initialize_vm().unwrap();
+
+        assert_eq!(cairo_runner.exec_scopes.data.len(), 1);
+        // Two steps: the instructions at pc 0 and pc 2; the hint at pc 2 must run.
+        assert_matches!(cairo_runner.run_for_steps(2, &mut hint_processor), Ok(()));
+        assert_eq!(cairo_runner.exec_scopes.data.len(), 2);
     }
 
     #[test]
