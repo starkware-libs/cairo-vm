@@ -488,16 +488,12 @@ impl VirtualMachine {
             max.max(off0).max(off1).max(off2),
         ));
 
-        self.segments
-            .memory
-            .mark_as_accessed(operands_addresses.dst_addr);
-        self.segments
-            .memory
-            .mark_as_accessed(operands_addresses.op0_addr);
-        self.segments
-            .memory
-            .mark_as_accessed(operands_addresses.op1_addr);
-        self.segments.memory.mark_as_accessed(self.run_context.pc);
+        self.segments.memory.mark_as_accessed_batch([
+            operands_addresses.dst_addr,
+            operands_addresses.op0_addr,
+            operands_addresses.op1_addr,
+            self.run_context.pc,
+        ]);
 
         if instruction.opcode_extension == OpcodeExtension::Blake
             || instruction.opcode_extension == OpcodeExtension::BlakeFinalize

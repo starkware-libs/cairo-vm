@@ -81,6 +81,14 @@ impl MemoryCell {
     pub fn get_value(&self) -> Option<MaybeRelocatable> {
         self.is_some().then(|| (*self).into())
     }
+
+    /// Compares the values held by two cells, ignoring the ACCESS flag.
+    /// Both the felt and the relocatable encodings are canonical, so comparing the raw words is
+    /// equivalent to comparing the corresponding `MaybeRelocatable`s.
+    pub fn eq_value(&self, other: &Self) -> bool {
+        let mask = !Self::ACCESS_MASK;
+        (self.0[0] & mask, &self.0[1..]) == (other.0[0] & mask, &other.0[1..])
+    }
 }
 
 impl From<MaybeRelocatable> for MemoryCell {
@@ -243,19 +251,18 @@ impl Memory {
         }
         // At this point there's *something* in there
 
-        match segment[value_offset].get_value() {
-            None => segment[value_offset] = MemoryCell::new(val),
-            Some(current_cell) => {
-                if current_cell != val {
-                    //Existing memory cannot be changed
-                    return Err(MemoryError::InconsistentMemory(Box::new((
-                        key,
-                        current_cell,
-                        val,
-                    ))));
-                }
-            }
-        };
+        let new_cell = MemoryCell::new(val);
+        let cell = &mut segment[value_offset];
+        if cell.is_none() {
+            *cell = new_cell;
+        } else if !cell.eq_value(&new_cell) {
+            //Existing memory cannot be changed
+            return Err(MemoryError::InconsistentMemory(Box::new((
+                key,
+                (*cell).into(),
+                new_cell.into(),
+            ))));
+        }
         self.validate_memory_cell(key)
     }
 
@@ -854,6 +861,31 @@ impl Memory {
         let cell = data.get_mut(i).and_then(|x| x.get_mut(j));
         if let Some(cell) = cell {
             cell.mark_accessed()
+        }
+    }
+
+    /// Marks a batch of addresses as accessed, resolving each segment only once for runs of
+    /// consecutive addresses sharing a segment.
+    pub(crate) fn mark_as_accessed_batch<const N: usize>(&mut self, addrs: [Relocatable; N]) {
+        let mut i = 0;
+        while i < N {
+            let segment_index = addrs[i].segment_index;
+            let (data_index, _) = from_relocatable_to_indexes(addrs[i]);
+            let data = if segment_index < 0 {
+                &mut self.temp_data
+            } else {
+                &mut self.data
+            };
+            let mut segment = data.get_mut(data_index);
+            while i < N && addrs[i].segment_index == segment_index {
+                if let Some(cell) = segment
+                    .as_deref_mut()
+                    .and_then(|segment| segment.get_mut(addrs[i].offset))
+                {
+                    cell.mark_accessed();
+                }
+                i += 1;
+            }
         }
     }
 
@@ -2003,6 +2035,42 @@ mod memory_tests {
         assert!(!memory.data[0][0].is_accessed());
         memory.mark_as_accessed(relocatable!(0, 0));
         assert!(memory.data[0][0].is_accessed());
+    }
+
+    #[test]
+    fn mark_address_as_accessed_batch() {
+        let mut memory = memory![((0, 0), 0), ((0, 1), 1), ((1, 0), 2), ((1, 1), 3)];
+        // Runs of same-segment addresses, an unknown cell and an unallocated segment.
+        memory.mark_as_accessed_batch([
+            relocatable!(1, 0),
+            relocatable!(1, 1),
+            relocatable!(0, 1),
+            relocatable!(0, 5),
+            relocatable!(7, 0),
+        ]);
+        assert!(!memory.data[0][0].is_accessed());
+        assert!(memory.data[0][1].is_accessed());
+        assert!(memory.data[1][0].is_accessed());
+        assert!(memory.data[1][1].is_accessed());
+    }
+
+    #[test]
+    fn memory_cell_eq_value_ignores_access_flag() {
+        let felt_cell = MemoryCell::new(MaybeRelocatable::from(Felt252::from(7)));
+        let mut accessed_felt_cell = felt_cell;
+        accessed_felt_cell.mark_accessed();
+        assert!(felt_cell.eq_value(&accessed_felt_cell));
+        assert!(accessed_felt_cell.eq_value(&felt_cell));
+
+        let other_felt_cell = MemoryCell::new(MaybeRelocatable::from(Felt252::from(8)));
+        assert!(!felt_cell.eq_value(&other_felt_cell));
+
+        let reloc_cell = MemoryCell::new(MaybeRelocatable::from((1, 2)));
+        let mut accessed_reloc_cell = reloc_cell;
+        accessed_reloc_cell.mark_accessed();
+        assert!(reloc_cell.eq_value(&accessed_reloc_cell));
+        assert!(!reloc_cell.eq_value(&MemoryCell::new(MaybeRelocatable::from((1, 3)))));
+        assert!(!reloc_cell.eq_value(&felt_cell));
     }
 
     #[test]
