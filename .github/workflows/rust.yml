@@ -137,7 +137,7 @@ jobs:
         key: cairo_bench_programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
         fail-on-cache-miss: true
     - name: Fetch cairo test suite programs
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: cairo_test_suite_programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
@@ -198,8 +198,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # NOTE: installed and run directly: the bnjbvr/cargo-machete action internally uses
+      # clechasseur/rs-cargo by tag, which the org's action-pinning policy rejects.
+      - name: Install machete
+        run: cargo install cargo-machete --locked --version 0.9.1
       - name: Machete
-        uses: bnjbvr/cargo-machete@7959c845782fed02ee69303126d4a12d64f1db18 # v0.9.1
+        run: cargo machete
 
   # NOTE: the term "smoke test" comes from electronics design: the minimal
   # expectations anyone has in their device is to not catch fire on boot.
