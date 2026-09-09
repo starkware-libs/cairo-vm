@@ -119,43 +119,43 @@ jobs:
         path: cairo_programs/proof_programs/
 
     - name: Fetch test programs
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: cairo_test_programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
         fail-on-cache-miss: true
     - name: Fetch proof programs
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: cairo_proof_programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
         fail-on-cache-miss: true
     - name: Fetch bench programs
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: cairo_bench_programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
         fail-on-cache-miss: true
     - name: Fetch cairo test suite programs
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: cairo_test_suite_programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
         fail-on-cache-miss: true
     - name: Fetch test contracts (Cairo 1)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: cairo_1_test_contracts-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
         fail-on-cache-miss: true
     - name: Fetch test contracts (Cairo 2)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: cairo_2_test_contracts-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
         fail-on-cache-miss: true
     - name: Merge caches
-      uses: actions/cache/save@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: all-programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
@@ -184,7 +184,7 @@ jobs:
 
 
     - name: Fetch programs
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: all-programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
@@ -238,7 +238,7 @@ jobs:
         path: cairo_programs/proof_programs/
 
     - name: Fetch programs
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: all-programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
@@ -283,7 +283,7 @@ jobs:
         path: cairo_programs/proof_programs/
 
     - name: Fetch programs
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: all-programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
@@ -318,7 +318,7 @@ jobs:
         path: cairo_programs/proof_programs/
 
     - name: Fetch programs
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: all-programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
@@ -344,7 +344,7 @@ jobs:
             --workspace --features "cairo-1-hints, test_utils, ${{ matrix.special_features }}"
 
     - name: Save coverage
-      uses: actions/cache/save@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: lcov-${{ matrix.target }}-${{ matrix.special_features }}.info
         key: codecov-cache-${{ matrix.target }}-${{ matrix.special_features }}-${{ github.sha }}
@@ -363,7 +363,7 @@ jobs:
       run: cargo b --release -p cairo-vm-cli
     # We don't read from cache because it should always miss
     - name: Store in cache
-      uses: actions/cache/save@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         key: cli-bin-rel-${{ github.sha }}
         path: target/release/cairo-vm-cli
@@ -418,7 +418,7 @@ jobs:
 
     - name: Fetch programs
       if: steps.trace-cache.outputs.cache-hit != 'true'
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: ${{ matrix.program-target }}-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
@@ -453,7 +453,7 @@ jobs:
       uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
     - name: Fetch release binary
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         key: cli-bin-rel-${{ github.sha }}
         path: target/release/cairo-vm-cli
@@ -465,7 +465,7 @@ jobs:
         path: cairo_programs/proof_programs/
 
     - name: Fetch programs
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: ${{ matrix.program-target }}-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
@@ -479,7 +479,7 @@ jobs:
         --memory_file '{program}'.rs.memory --trace_file '{program}'.rs.trace --fill-holes false \
         ${{ matrix.extra-args }}
     - name: Update cache
-      uses: actions/cache/save@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: |
           cairo_programs/**/*.memory
@@ -499,49 +499,49 @@ jobs:
       uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
     - name: Fetch results for tests with stdlib (part. 1)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: lcov-test#1-.info
         key: codecov-cache-test#1--${{ github.sha }}
         fail-on-cache-miss: true
     - name: Fetch results for tests with stdlib (part. 2)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: lcov-test#2-.info
         key: codecov-cache-test#2--${{ github.sha }}
         fail-on-cache-miss: true
     - name: Fetch results for tests with stdlib (part. 3)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: lcov-test#3-.info
         key: codecov-cache-test#3--${{ github.sha }}
         fail-on-cache-miss: true
     - name: Fetch results for tests with stdlib (part. 4)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: lcov-test#4-.info
         key: codecov-cache-test#4--${{ github.sha }}
         fail-on-cache-miss: true
     - name: Fetch results for tests with stdlib (w/cairo-0-secp-hints; part. 1)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: lcov-test#1-cairo-0-secp-hints.info
         key: codecov-cache-test#1-cairo-0-secp-hints-${{ github.sha }}
         fail-on-cache-miss: true
     - name: Fetch results for tests with stdlib (w/cairo-0-secp-hints; part. 2)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: lcov-test#2-cairo-0-secp-hints.info
         key: codecov-cache-test#2-cairo-0-secp-hints-${{ github.sha }}
         fail-on-cache-miss: true
     - name: Fetch results for tests with stdlib (w/cairo-0-secp-hints; part. 3)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: lcov-test#3-cairo-0-secp-hints.info
         key: codecov-cache-test#3-cairo-0-secp-hints-${{ github.sha }}
         fail-on-cache-miss: true
     - name: Fetch results for tests with stdlib (w/cairo-0-secp-hints; part. 4)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: lcov-test#4-cairo-0-secp-hints.info
         key: codecov-cache-test#4-cairo-0-secp-hints-${{ github.sha }}
@@ -571,7 +571,7 @@ jobs:
         path: cairo_programs/proof_programs/
 
     - name: Fetch traces for cairo-lang
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: |
           cairo_programs/**/*.memory
@@ -583,7 +583,7 @@ jobs:
         fail-on-cache-miss: true
 
     - name: Fetch traces for cairo-vm
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: |
           cairo_programs/**/*.memory
@@ -624,7 +624,7 @@ jobs:
           echo PATH=$PATH >> $GITHUB_ENV
 
     - name: Fetch release binary
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         key: cli-bin-rel-${{ github.sha }}
         path: target/release/cairo-vm-cli
@@ -636,7 +636,7 @@ jobs:
         path: cairo_programs/proof_programs/
 
     - name: Fetch programs
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: cairo_proof_programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
@@ -664,7 +664,7 @@ jobs:
           echo PATH=$PATH >> $GITHUB_ENV
 
     - name: Fetch release binary
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         key: cli-bin-rel-${{ github.sha }}
         path: target/release/cairo-vm-cli
@@ -676,14 +676,14 @@ jobs:
         path: cairo_programs/proof_programs/
 
     - name: Fetch programs
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: cairo_proof_programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
         fail-on-cache-miss: true
 
     - name: Fetch pie
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: |
           cairo_programs/**/*.memory
@@ -716,14 +716,14 @@ jobs:
           echo PATH=$PATH >> $GITHUB_ENV
 
     - name: Fetch release binary
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         key: cli-bin-rel-${{ github.sha }}
         path: target/release/cairo-vm-cli
         fail-on-cache-miss: true
 
     - name: Fetch traces for cairo-vm
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: |
           cairo_programs/**/*.memory
