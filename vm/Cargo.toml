@@ -23,7 +23,6 @@ cairo-0-data-availability-hints = []
 test_utils = ["dep:arbitrary", "starknet-types-core/arbitrary", "starknet-types-core/std"] # This feature will reference every test-oriented feature
 # Allows extending the set of hints for the current vm run from within a hint.
 # For a usage example checkout vm/src/tests/run_deprecated_contract_class_simplified.rs
-extensive_hints = []
 
 [dependencies]
 zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
