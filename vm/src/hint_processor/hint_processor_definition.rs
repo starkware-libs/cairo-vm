@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, sync::Arc};
+use std::{any::Any, collections::HashMap, num::NonZeroUsize, sync::Arc};
 
 use crate::any_box;
 use crate::serde::deserialize_program::ApTracking;
@@ -6,6 +6,7 @@ use crate::serde::deserialize_program::OffsetValue;
 use crate::serde::deserialize_program::Reference;
 use crate::types::exec_scope::ExecutionScopes;
 use crate::types::instruction::Register;
+use crate::types::program::HintRange;
 use crate::types::relocatable::Relocatable;
 use crate::vm::errors::hint_errors::HintError;
 use crate::vm::errors::vm_errors::VirtualMachineError;
@@ -20,7 +21,7 @@ use arbitrary::Arbitrary;
 
 pub trait HintProcessorLogic {
     // Executes the hint which's data is provided by a dynamic structure previously created by compile_hint
-    // Note: if the `extensive_hints` feature is activated the method used by the vm to execute hints is `execute_hint_extensive`, which's default implementation calls this method.
+    // Note: the method used by the vm to execute hints is `execute_hint_extensive`, whose default implementation calls this method.
     fn execute_hint(
         &mut self,
         vm: &mut VirtualMachine,
@@ -55,7 +56,6 @@ pub trait HintProcessorLogic {
         }))
     }
 
-    #[cfg(feature = "extensive_hints")]
     // Executes the hint which's data is provided by a dynamic structure previously created by compile_hint
     // Also returns a map of hints to be loaded after the current hint is executed
     // Note: This is the method used by the vm to execute hints,
@@ -75,6 +75,57 @@ pub trait HintProcessorLogic {
 // A map of hints that can be used to extend the current map of hints for the vm run
 // The map matches the pc at which the hints should be executed to a vec of compiled hints (Outputed by HintProcessor::CompileHint)
 pub type HintExtension = HashMap<Relocatable, Vec<Box<dyn Any>>>;
+
+/// The hints of a single run: the compiled data of the hints, the program's own hint ranges,
+/// and the ranges of hints added at runtime.
+pub struct RunHints<'program> {
+    /// The compiled data of the hints; hints added at runtime are appended to it.
+    pub(crate) datas: Vec<Box<dyn Any>>,
+    /// The program's own hint ranges, indexed by the pc offset in the program segment.
+    pub(crate) static_ranges: &'program [HintRange],
+    /// The ranges of hints added at runtime, overriding the static ones.
+    pub(crate) extra_ranges: HashMap<Relocatable, (usize, NonZeroUsize)>,
+}
+
+impl<'program> RunHints<'program> {
+    pub fn new(datas: Vec<Box<dyn Any>>, static_ranges: &'program [HintRange]) -> Self {
+        Self {
+            datas,
+            static_ranges,
+            extra_ranges: HashMap::new(),
+        }
+    }
+
+    /// Returns the range in `datas` of the hints at `pc`.
+    pub(crate) fn range_for(&self, pc: Relocatable) -> Option<(usize, NonZeroUsize)> {
+        // Hints added at runtime (usually none) override the program's own; the common lookup
+        // stays an array access.
+        if !self.extra_ranges.is_empty() {
+            if let Some(range) = self.extra_ranges.get(&pc) {
+                return Some(*range);
+            }
+        }
+        if pc.segment_index == 0 {
+            return self.static_ranges.get(pc.offset).copied().flatten();
+        }
+        None
+    }
+
+    /// Adds the hints of an extension at their pcs.
+    pub(crate) fn extend(&mut self, extension: HintExtension) {
+        for (pc, hints) in extension {
+            if let Ok(len) = NonZeroUsize::try_from(hints.len()) {
+                self.extra_ranges.insert(pc, (self.datas.len(), len));
+                self.datas.extend(hints);
+            }
+        }
+    }
+
+    /// The compiled data of all the hints.
+    pub fn datas(&self) -> &[Box<dyn Any>] {
+        &self.datas
+    }
+}
 
 pub trait HintProcessor: HintProcessorLogic + ResourceTracker {}
 impl<T> HintProcessor for T where T: HintProcessorLogic + ResourceTracker {}

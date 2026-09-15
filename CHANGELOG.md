@@ -11,6 +11,8 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 ---
 
 #### Upcoming Changes
+* refactor: remove the `extensive_hints` feature; its behavior is now always available. Programs' own hints keep the fast vector-indexed lookup; hints added at runtime live in an overflow map only consulted when non-empty, so regular execution does not pay for the capability. BREAKING: `step`/`step_hint` have one signature, taking a `RunHints` (the compiled hint datas, the program's hint ranges, and the runtime-added ones); relocation rules always accept `MaybeRelocatable` targets, and the feature flag is gone [#2401](https://github.com/starkware-libs/cairo-vm/pull/2401)
+
 * ci: pin GitHub Actions to commit SHAs and bump deprecated `upload-artifact`/`download-artifact` to v4 [#2388](https://github.com/starkware-libs/cairo-vm/pull/2388)
 
 * fix: remove feature mod_builtin [#2387](https://github.com/starkware-libs/cairo-vm/pull/2387)

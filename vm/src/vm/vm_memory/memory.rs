@@ -167,9 +167,6 @@ pub struct Memory {
     pub(crate) temp_data: Vec<Vec<MemoryCell>>,
     // relocation_rules's keys map to temp_data's indices and therefore begin at
     // zero; that is, segment_index = -1 maps to key 0, -2 to key 1...
-    #[cfg(not(feature = "extensive_hints"))]
-    pub(crate) relocation_rules: HashMap<usize, Relocatable>,
-    #[cfg(feature = "extensive_hints")]
     pub(crate) relocation_rules: HashMap<usize, MaybeRelocatable>,
     pub validated_addresses: AddressSet,
     validation_rules: Vec<Option<ValidationRule>>,
@@ -273,22 +270,7 @@ impl Memory {
     }
 
     // Version of Memory.relocate_value() that doesn't require a self reference
-    #[cfg(not(feature = "extensive_hints"))]
-    fn relocate_address(
-        addr: Relocatable,
-        relocation_rules: &HashMap<usize, Relocatable>,
-    ) -> Result<MaybeRelocatable, MemoryError> {
-        if addr.segment_index < 0 {
-            // Adjust the segment index to begin at zero, as per the struct field's
-            // comment.
-            if let Some(x) = relocation_rules.get(&(-(addr.segment_index + 1) as usize)) {
-                return Ok((*x + addr.offset)?.into());
-            }
-        }
-        Ok(addr.into())
-    }
 
-    #[cfg(feature = "extensive_hints")]
     fn relocate_address(
         addr: Relocatable,
         relocation_rules: &HashMap<usize, MaybeRelocatable>,
@@ -306,35 +288,6 @@ impl Memory {
         Ok(addr.into())
     }
 
-    #[cfg(not(feature = "extensive_hints"))]
-    fn flatten_relocation_rules(&mut self) -> Result<(), MemoryError> {
-        let keys: Vec<usize> = self.relocation_rules.keys().copied().collect();
-        let max_hops = self.relocation_rules.len().saturating_add(1);
-        for key in keys {
-            let mut dst = *self
-                .relocation_rules
-                .get(&key)
-                .expect("key taken from keys vec must exist");
-
-            let mut hops = 0;
-            while dst.segment_index < 0 {
-                let next_key = (-(dst.segment_index + 1)) as usize;
-                let next = *self
-                    .relocation_rules
-                    .get(&next_key)
-                    .ok_or(MemoryError::UnmappedTemporarySegment(dst.segment_index))?;
-                dst = (next + dst.offset).map_err(MemoryError::Math)?;
-                hops += 1;
-                if hops > max_hops {
-                    return Err(MemoryError::Relocation); // cycle guard
-                }
-            }
-            self.relocation_rules.insert(key, dst);
-        }
-        Ok(())
-    }
-
-    #[cfg(feature = "extensive_hints")]
     fn flatten_relocation_rules(&mut self) -> Result<(), MemoryError> {
         let keys: Vec<usize> = self.relocation_rules.keys().copied().collect();
         let max_hops = self.relocation_rules.len().saturating_add(1);
@@ -420,7 +373,6 @@ impl Memory {
             if let Some(base_addr) = self.relocation_rules.get(&index) {
                 let data_segment = self.temp_data.remove(index);
 
-                #[cfg(feature = "extensive_hints")]
                 let base_addr = match base_addr {
                     MaybeRelocatable::RelocatableValue(addr) => addr,
                     MaybeRelocatable::Int(_) => {
@@ -452,7 +404,7 @@ impl Memory {
 
     /// Add a new relocation rule.
     ///
-    /// When using feature "extensive_hints" the destination is allowed to be an Integer (via
+    /// The destination is allowed to be an Integer (via
     /// MaybeRelocatable). Relocating memory to anything other than a `Relocatable` is generally
     /// not useful, but it does make the implementation consistent with the pythonic version.
     ///
@@ -460,32 +412,6 @@ impl Memory {
     ///   - Source address's segment must be negative (temporary).
     ///   - Source address's offset must be zero.
     ///   - There shouldn't already be relocation at the source segment.
-    #[cfg(not(feature = "extensive_hints"))]
-    pub(crate) fn add_relocation_rule(
-        &mut self,
-        src_ptr: Relocatable,
-        dst_ptr: Relocatable,
-    ) -> Result<(), MemoryError> {
-        if src_ptr.segment_index >= 0 {
-            return Err(MemoryError::AddressNotInTemporarySegment(
-                src_ptr.segment_index,
-            ));
-        }
-        if src_ptr.offset != 0 {
-            return Err(MemoryError::NonZeroOffset(src_ptr.offset));
-        }
-
-        // Adjust the segment index to begin at zero, as per the struct field's
-        // comment.
-        let segment_index = -(src_ptr.segment_index + 1) as usize;
-        if self.relocation_rules.contains_key(&segment_index) {
-            return Err(MemoryError::DuplicatedRelocation(src_ptr.segment_index));
-        }
-
-        self.relocation_rules.insert(segment_index, dst_ptr);
-        Ok(())
-    }
-    #[cfg(feature = "extensive_hints")]
     pub(crate) fn add_relocation_rule(
         &mut self,
         src_ptr: Relocatable,
@@ -871,24 +797,10 @@ pub(crate) trait RelocateValue<'a, Input: 'a, Output: 'a> {
     fn relocate_value(&self, value: Input) -> Result<Output, MemoryError>;
 }
 
-#[cfg(not(feature = "extensive_hints"))]
-impl RelocateValue<'_, Relocatable, Relocatable> for Memory {
-    fn relocate_value(&self, addr: Relocatable) -> Result<Relocatable, MemoryError> {
-        if addr.segment_index < 0 {
-            // Adjust the segment index to begin at zero, as per the struct field's
-            // comment.
-            if let Some(x) = self
-                .relocation_rules
-                .get(&(-(addr.segment_index + 1) as usize))
-            {
-                return (*x + addr.offset).map_err(MemoryError::Math);
-            }
-        }
-        Ok(addr)
-    }
-}
-#[cfg(feature = "extensive_hints")]
 impl RelocateValue<'_, Relocatable, MaybeRelocatable> for Memory {
+    // Inlining is load-bearing: without it, `Memory::get` pays a call and a 40-byte
+    // struct-return copy on every read.
+    #[inline]
     fn relocate_value(&self, addr: Relocatable) -> Result<MaybeRelocatable, MemoryError> {
         if addr.segment_index < 0 {
             // Adjust the segment index to begin at zero, as per the struct field's
@@ -916,6 +828,7 @@ impl<'a> RelocateValue<'a, &'a Felt252, &'a Felt252> for Memory {
 }
 
 impl<'a> RelocateValue<'a, &'a MaybeRelocatable, Cow<'a, MaybeRelocatable>> for Memory {
+    #[inline]
     fn relocate_value(
         &self,
         value: &'a MaybeRelocatable,
@@ -923,9 +836,6 @@ impl<'a> RelocateValue<'a, &'a MaybeRelocatable, Cow<'a, MaybeRelocatable>> for 
         Ok(match value {
             MaybeRelocatable::Int(_) => Cow::Borrowed(value),
             MaybeRelocatable::RelocatableValue(addr) => {
-                #[cfg(not(feature = "extensive_hints"))]
-                let v = self.relocate_value(*addr)?.into();
-                #[cfg(feature = "extensive_hints")]
                 let v = self.relocate_value(*addr)?;
 
                 Cow::Owned(v)
@@ -1887,7 +1797,6 @@ mod memory_tests {
     }
 
     #[test]
-    #[cfg(feature = "extensive_hints")]
     fn relocate_address_to_integer() {
         let mut memory = Memory::new();
         memory
@@ -1908,7 +1817,6 @@ mod memory_tests {
     }
 
     #[test]
-    #[cfg(feature = "extensive_hints")]
     fn relocate_address_integer_no_duplicates() {
         let mut memory = Memory::new();
         memory
@@ -2066,48 +1974,6 @@ mod memory_tests {
     }
 
     #[test]
-    #[cfg(not(feature = "extensive_hints"))]
-    fn flatten_relocation_rules_chain_happy() {
-        let mut mem = Memory::new();
-        // temp segments just to keep indices sensible (not strictly required here)
-        mem.temp_data = vec![vec![], vec![]];
-
-        //  key 0 -> (-2, 3) ; key 1 -> (10, 4)
-        //  after flatten: key 0 -> (10, 7)
-        mem.relocation_rules.insert(0, Relocatable::from((-2, 3)));
-        mem.relocation_rules.insert(1, Relocatable::from((10, 4)));
-        // sanity: an unrelated rule stays as-is
-        mem.relocation_rules.insert(2, Relocatable::from((7, 1)));
-
-        assert_eq!(mem.flatten_relocation_rules(), Ok(()));
-        assert_eq!(
-            *mem.relocation_rules.get(&0).unwrap(),
-            Relocatable::from((10, 7))
-        );
-        assert_eq!(
-            *mem.relocation_rules.get(&1).unwrap(),
-            Relocatable::from((10, 4))
-        );
-        assert_eq!(
-            *mem.relocation_rules.get(&2).unwrap(),
-            Relocatable::from((7, 1))
-        );
-    }
-
-    #[test]
-    #[cfg(not(feature = "extensive_hints"))]
-    fn flatten_relocation_rules_cycle_err() {
-        let mut mem = Memory::new();
-        mem.temp_data = vec![vec![]];
-
-        // Self-loop: key 0 -> (-1, 0)  (i.e., points back to itself)
-        mem.relocation_rules.insert(0, Relocatable::from((-1, 0)));
-
-        assert_eq!(mem.flatten_relocation_rules(), Err(MemoryError::Relocation));
-    }
-
-    #[test]
-    #[cfg(feature = "extensive_hints")]
     fn flatten_relocation_rules_chain_happy_extensive_reloc_and_int() {
         let mut mem = Memory::new();
         mem.temp_data = vec![vec![], vec![], vec![], vec![], vec![]];
@@ -2162,7 +2028,6 @@ mod memory_tests {
     }
 
     #[test]
-    #[cfg(feature = "extensive_hints")]
     fn flatten_relocation_rules_int_with_non_zero_offset_err() {
         let mut mem = Memory::new();
         // temp_data length only matters for error messages; keep it >= biggest temp key + 1
@@ -2189,7 +2054,6 @@ mod memory_tests {
     }
 
     #[test]
-    #[cfg(feature = "extensive_hints")]
     fn flatten_relocation_rules_cycle_err_extensive() {
         let mut mem = Memory::new();
         mem.temp_data = vec![vec![], vec![]];
@@ -2210,23 +2074,6 @@ mod memory_tests {
     }
 
     #[test]
-    #[cfg(not(feature = "extensive_hints"))]
-    fn flatten_relocation_rules_missing_next_err() {
-        let mut mem = Memory::new();
-        mem.temp_data = vec![vec![], vec![], vec![]];
-
-        // key 0 -> (-4, 1)  => next_key = -( -4 + 1 ) = 3
-        // No rule for key 3, so we expect UnmappedTemporarySegment(-4).
-        mem.relocation_rules.insert(0, Relocatable::from((-4, 1)));
-
-        assert_eq!(
-            mem.flatten_relocation_rules(),
-            Err(MemoryError::UnmappedTemporarySegment(-4))
-        );
-    }
-
-    #[test]
-    #[cfg(feature = "extensive_hints")]
     fn flatten_relocation_rules_missing_next_err_extensive() {
         let mut mem = Memory::new();
         mem.temp_data = vec![vec![], vec![], vec![]];
@@ -2245,71 +2092,6 @@ mod memory_tests {
     }
 
     #[test]
-    #[cfg(not(feature = "extensive_hints"))]
-    fn relocate_memory_temp_chain_multi_hop() {
-        let mut memory = Memory::new();
-
-        // temp segments:
-        //  -1: [100, 200]
-        //  -2: [7, 8, 9]
-        memory.temp_data = vec![
-            vec![
-                MemoryCell::new(mayberelocatable!(100)),
-                MemoryCell::new(mayberelocatable!(200)),
-            ],
-            vec![
-                MemoryCell::new(mayberelocatable!(7)),
-                MemoryCell::new(mayberelocatable!(8)),
-                MemoryCell::new(mayberelocatable!(9)),
-            ],
-        ];
-
-        // Rules:
-        //   key 0 (-1) -> (-2, 3)
-        //   key 1 (-2) -> (5, 10)
-        // Chain: -1 -> -2-> (5,10)  => -1 relocates to (5,13)
-        memory
-            .relocation_rules
-            .insert(0, Relocatable::from((-2, 3)));
-        memory
-            .relocation_rules
-            .insert(1, Relocatable::from((5, 10)));
-
-        // Real memory references that point into temp segments
-        // Expect after relocation:
-        //   (0,0): (-1,0) -> (5,13)
-        //   (0,1): (-1,1) -> (5,14)
-        //   (0,2): (-2,0) -> (5,10)
-        memory.data.push(vec![
-            MemoryCell::new(mayberelocatable!(-1, 0)),
-            MemoryCell::new(mayberelocatable!(-1, 1)),
-            MemoryCell::new(mayberelocatable!(-2, 0)),
-        ]);
-
-        // Allocate destination segment 5
-        while memory.data.len() <= 5 {
-            memory.data.push(Vec::new());
-        }
-
-        assert_eq!(memory.relocate_memory(), Ok(()));
-
-        // References updated
-        check_memory!(
-            memory,
-            ((0, 0), (5, 13)),
-            ((0, 1), (5, 14)),
-            ((0, 2), (5, 10)),
-            ((5, 10), 7),
-            ((5, 11), 8),
-            ((5, 12), 9),
-            ((5, 13), 100),
-            ((5, 14), 200)
-        );
-        assert!(memory.temp_data.is_empty());
-    }
-
-    #[test]
-    #[cfg(feature = "extensive_hints")]
     fn relocate_memory_temp_chain_to_int_multi_hop() {
         let mut memory = Memory::new();
 

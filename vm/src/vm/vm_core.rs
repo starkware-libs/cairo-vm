@@ -1,7 +1,6 @@
+use crate::hint_processor::hint_processor_definition::RunHints;
 use crate::math_utils::signed_felt;
 use crate::types::builtin_name::BuiltinName;
-#[cfg(feature = "extensive_hints")]
-use crate::types::program::HintRange;
 use crate::vm::vm_memory::memory::MemoryCell;
 use crate::{
     hint_processor::{
@@ -36,8 +35,6 @@ use std::{any::Any, borrow::Cow, collections::HashMap};
 
 use crate::Felt252;
 use core::cmp::Ordering;
-#[cfg(feature = "extensive_hints")]
-use core::num::NonZeroUsize;
 use num_traits::{ToPrimitive, Zero};
 
 use super::errors::runner_errors::RunnerError;
@@ -587,50 +584,29 @@ impl VirtualMachine {
         decode_instruction(instruction)
     }
 
-    #[cfg(not(feature = "extensive_hints"))]
     pub fn step_hint(
         &mut self,
         hint_processor: &mut dyn HintProcessor,
         exec_scopes: &mut ExecutionScopes,
-        hint_datas: &[Box<dyn Any>],
+        hints: &mut RunHints<'_>,
     ) -> Result<(), VirtualMachineError> {
-        for (hint_index, hint_data) in hint_datas.iter().enumerate() {
-            hint_processor
-                .execute_hint(self, exec_scopes, hint_data)
-                .map_err(|err| VirtualMachineError::Hint(Box::new((hint_index, err))))?
-        }
-        Ok(())
-    }
-
-    #[cfg(feature = "extensive_hints")]
-    pub fn step_hint(
-        &mut self,
-        hint_processor: &mut dyn HintProcessor,
-        exec_scopes: &mut ExecutionScopes,
-        hint_datas: &mut Vec<Box<dyn Any>>,
-        hint_ranges: &mut HashMap<Relocatable, HintRange>,
-    ) -> Result<(), VirtualMachineError> {
-        // Check if there is a hint range for the current pc
-        if let Some((s, l)) = hint_ranges.get(&self.run_context.pc) {
-            // Re-binding to avoid mutability problems
-            let s = *s;
-            // Execute each hint for the given range
-            for idx in s..(s + l.get()) {
-                let hint_extension = hint_processor
-                    .execute_hint_extensive(
-                        self,
-                        exec_scopes,
-                        hint_datas.get(idx).ok_or(VirtualMachineError::Unexpected)?,
-                    )
-                    .map_err(|err| VirtualMachineError::Hint(Box::new((idx - s, err))))?;
-                // Update the hint_ranges & hint_datas with the hints added by the executed hint
-                for (hint_pc, hints) in hint_extension {
-                    if let Ok(len) = NonZeroUsize::try_from(hints.len()) {
-                        hint_ranges.insert(hint_pc, (hint_datas.len(), len));
-                        hint_datas.extend(hints);
-                    }
-                }
-            }
+        let Some((s, l)) = hints.range_for(self.run_context.pc) else {
+            return Ok(());
+        };
+        // Execute each hint for the given range
+        for idx in s..(s + l.get()) {
+            let hint_extension = hint_processor
+                .execute_hint_extensive(
+                    self,
+                    exec_scopes,
+                    hints
+                        .datas
+                        .get(idx)
+                        .ok_or(VirtualMachineError::Unexpected)?,
+                )
+                .map_err(|err| VirtualMachineError::Hint(Box::new((idx - s, err))))?;
+            // Add the hints added by the executed hint
+            hints.extend(hint_extension);
         }
         Ok(())
     }
@@ -678,24 +654,16 @@ impl VirtualMachine {
         &mut self,
         hint_processor: &mut dyn HintProcessor,
         exec_scopes: &mut ExecutionScopes,
-        #[cfg(feature = "extensive_hints")] hint_datas: &mut Vec<Box<dyn Any>>,
-        #[cfg(not(feature = "extensive_hints"))] hint_datas: &[Box<dyn Any>],
-        #[cfg(feature = "extensive_hints")] hint_ranges: &mut HashMap<Relocatable, HintRange>,
+        hints: &mut RunHints<'_>,
         #[cfg(feature = "test_utils")] constants: &HashMap<String, Felt252>,
     ) -> Result<(), VirtualMachineError> {
-        self.step_hint(
-            hint_processor,
-            exec_scopes,
-            hint_datas,
-            #[cfg(feature = "extensive_hints")]
-            hint_ranges,
-        )?;
+        self.step_hint(hint_processor, exec_scopes, hints)?;
 
         #[cfg(feature = "test_utils")]
-        self.execute_pre_step_instruction(hint_processor, exec_scopes, hint_datas, constants)?;
+        self.execute_pre_step_instruction(hint_processor, exec_scopes, hints.datas(), constants)?;
         self.step_instruction()?;
         #[cfg(feature = "test_utils")]
-        self.execute_post_step_instruction(hint_processor, exec_scopes, hint_datas, constants)?;
+        self.execute_post_step_instruction(hint_processor, exec_scopes, hints.datas(), constants)?;
 
         Ok(())
     }
@@ -1236,7 +1204,7 @@ impl VirtualMachine {
 
     /// Add a new relocation rule.
     ///
-    /// When using feature "extensive_hints" the destination is allowed to be an Integer (via
+    /// The destination is allowed to be an Integer (via
     /// MaybeRelocatable). Relocating memory to anything other than a `Relocatable` is generally
     /// not useful, but it does make the implementation consistent with the pythonic version.
     ///
@@ -1247,8 +1215,7 @@ impl VirtualMachine {
     pub fn add_relocation_rule(
         &mut self,
         src_ptr: Relocatable,
-        #[cfg(not(feature = "extensive_hints"))] dst_ptr: Relocatable,
-        #[cfg(feature = "extensive_hints")] dst_ptr: MaybeRelocatable,
+        dst_ptr: MaybeRelocatable,
     ) -> Result<(), MemoryError> {
         self.segments.memory.add_relocation_rule(src_ptr, dst_ptr)
     }
@@ -3342,9 +3309,7 @@ mod tests {
             vm.step(
                 &mut hint_processor,
                 exec_scopes_ref!(),
-                &mut Vec::new(),
-                #[cfg(feature = "extensive_hints")]
-                &mut HashMap::new(),
+                &mut RunHints::new(Vec::new(), &[]),
                 #[cfg(feature = "test_utils")]
                 &HashMap::new(),
             ),
@@ -3573,9 +3538,7 @@ mod tests {
             vm.step(
                 &mut hint_processor,
                 exec_scopes_ref!(),
-                &mut Vec::new(),
-                #[cfg(feature = "extensive_hints")]
-                &mut HashMap::new(),
+                &mut RunHints::new(Vec::new(), &[]),
                 #[cfg(feature = "test_utils")]
                 &HashMap::new(),
             ),
@@ -3657,9 +3620,7 @@ mod tests {
                 vm.step(
                     &mut hint_processor,
                     exec_scopes_ref!(),
-                    &mut Vec::new(),
-                    #[cfg(feature = "extensive_hints")]
-                    &mut HashMap::new(),
+                    &mut RunHints::new(Vec::new(), &[]),
                     #[cfg(feature = "test_utils")]
                     &HashMap::new()
                 ),
@@ -3766,9 +3727,7 @@ mod tests {
             vm.step(
                 &mut hint_processor,
                 exec_scopes_ref!(),
-                &mut Vec::new(),
-                #[cfg(feature = "extensive_hints")]
-                &mut HashMap::new(),
+                &mut RunHints::new(Vec::new(), &[]),
                 #[cfg(feature = "test_utils")]
                 &HashMap::new()
             ),
@@ -3790,9 +3749,7 @@ mod tests {
             vm.step(
                 &mut hint_processor,
                 exec_scopes_ref!(),
-                &mut Vec::new(),
-                #[cfg(feature = "extensive_hints")]
-                &mut HashMap::new(),
+                &mut RunHints::new(Vec::new(), &[]),
                 #[cfg(feature = "test_utils")]
                 &HashMap::new()
             ),
@@ -3815,9 +3772,7 @@ mod tests {
             vm.step(
                 &mut hint_processor,
                 exec_scopes_ref!(),
-                &mut Vec::new(),
-                #[cfg(feature = "extensive_hints")]
-                &mut HashMap::new(),
+                &mut RunHints::new(Vec::new(), &[]),
                 #[cfg(feature = "test_utils")]
                 &HashMap::new()
             ),
@@ -4358,27 +4313,19 @@ mod tests {
             ((1, 1), (3, 0))
         ];
 
-        #[cfg(feature = "extensive_hints")]
-        let mut hint_data = hint_data;
+        let mut hints = RunHints::new(hint_data, &[]);
+        hints.extra_ranges.insert(
+            Relocatable::from((0, 0)),
+            (0_usize, core::num::NonZeroUsize::new(1).unwrap()),
+        );
 
         //Run Steps
         for _ in 0..6 {
-            #[cfg(not(feature = "extensive_hints"))]
-            let mut hint_data = if vm.run_context.pc == (0, 0).into() {
-                &hint_data[0..]
-            } else {
-                &hint_data[0..0]
-            };
             assert_matches!(
                 vm.step(
                     &mut hint_processor,
                     exec_scopes_ref!(),
-                    &mut hint_data,
-                    #[cfg(feature = "extensive_hints")]
-                    &mut HashMap::from([(
-                        Relocatable::from((0, 0)),
-                        (0_usize, NonZeroUsize::new(1).unwrap())
-                    )]),
+                    &mut hints,
                     #[cfg(feature = "test_utils")]
                     &HashMap::new(),
                 ),
@@ -5361,9 +5308,7 @@ mod tests {
             vm.step(
                 &mut hint_processor,
                 exec_scopes_ref!(),
-                &mut Vec::new(),
-                #[cfg(feature = "extensive_hints")]
-                &mut HashMap::new(),
+                &mut RunHints::new(Vec::new(), &[]),
                 #[cfg(feature = "test_utils")]
                 &HashMap::new()
             ),
@@ -5448,9 +5393,7 @@ mod tests {
                 vm.step(
                     &mut hint_processor,
                     exec_scopes_ref!(),
-                    &mut Vec::new(),
-                    #[cfg(feature = "extensive_hints")]
-                    &mut HashMap::new(),
+                    &mut RunHints::new(Vec::new(), &[]),
                     #[cfg(feature = "test_utils")]
                     &HashMap::new()
                 ),

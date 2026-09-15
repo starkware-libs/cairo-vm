@@ -294,7 +294,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        special_features: ["", "extensive_hints", "cairo-0-secp-hints", "cairo-0-data-availability-hints"]
+        special_features: ["", "cairo-0-secp-hints", "cairo-0-data-availability-hints"]
         target: [ test#1, test#2, test#3, test#4 ]
     name: Run tests
     runs-on: ubuntu-24.04
@@ -517,30 +517,6 @@ jobs:
       with:
         path: lcov-test#4-.info
         key: codecov-cache-test#4--${{ github.sha }}
-        fail-on-cache-miss: true
-    - name: Fetch results for tests with stdlib (w/extensive_hints; part. 1)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
-      with:
-        path: lcov-test#1-extensive_hints.info
-        key: codecov-cache-test#1-extensive_hints-${{ github.sha }}
-        fail-on-cache-miss: true
-    - name: Fetch results for tests with stdlib (w/extensive_hints; part. 2)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
-      with:
-        path: lcov-test#2-extensive_hints.info
-        key: codecov-cache-test#2-extensive_hints-${{ github.sha }}
-        fail-on-cache-miss: true
-    - name: Fetch results for tests with stdlib (w/extensive_hints; part. 3)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
-      with:
-        path: lcov-test#3-extensive_hints.info
-        key: codecov-cache-test#3-extensive_hints-${{ github.sha }}
-        fail-on-cache-miss: true
-    - name: Fetch results for tests with stdlib (w/extensive_hints; part. 4)
-      uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3
-      with:
-        path: lcov-test#4-extensive_hints.info
-        key: codecov-cache-test#4-extensive_hints-${{ github.sha }}
         fail-on-cache-miss: true
     - name: Fetch results for tests with stdlib (w/cairo-0-secp-hints; part. 1)
       uses: actions/cache/restore@6f8efc29b200d32929f49075959781ed54ec270c # v3

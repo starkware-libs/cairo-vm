@@ -19,7 +19,7 @@ use crate::{
 };
 
 use crate::{
-    hint_processor::hint_processor_definition::{HintProcessor, HintReference},
+    hint_processor::hint_processor_definition::{HintProcessor, HintReference, RunHints},
     types::{
         errors::{math_errors::MathError, program_errors::ProgramError},
         exec_scope::ExecutionScopes,
@@ -782,36 +782,21 @@ impl CairoRunner {
         hint_processor: &mut dyn HintProcessor,
     ) -> Result<(), VirtualMachineError> {
         let references = &self.program.shared_program_data.reference_manager;
-        #[cfg(not(feature = "extensive_hints"))]
-        let hint_data = self.get_hint_data(references, hint_processor)?;
-        #[cfg(feature = "extensive_hints")]
-        let mut hint_data = self.get_hint_data(references, hint_processor)?;
-        #[cfg(feature = "extensive_hints")]
-        let mut hint_ranges = self
-            .program
-            .shared_program_data
-            .hints_collection
-            .hints_ranges
-            .clone();
+        let mut hints = RunHints::new(
+            self.get_hint_data(references, hint_processor)?,
+            &self
+                .program
+                .shared_program_data
+                .hints_collection
+                .hints_ranges,
+        );
         #[cfg(feature = "test_utils")]
-        self.vm.execute_before_first_step(&hint_data)?;
+        self.vm.execute_before_first_step(hints.datas())?;
         while self.vm.get_pc() != address && !hint_processor.consumed() {
             self.vm.step(
                 hint_processor,
                 &mut self.exec_scopes,
-                #[cfg(feature = "extensive_hints")]
-                &mut hint_data,
-                #[cfg(not(feature = "extensive_hints"))]
-                self.program
-                    .shared_program_data
-                    .hints_collection
-                    .get_hint_range_for_pc(self.vm.get_pc().offset)
-                    .and_then(|range| {
-                        range.and_then(|(start, length)| hint_data.get(start..start + length.get()))
-                    })
-                    .unwrap_or(&[]),
-                #[cfg(feature = "extensive_hints")]
-                &mut hint_ranges,
+                &mut hints,
                 #[cfg(feature = "test_utils")]
                 &self.program.constants,
             )?;
@@ -833,27 +818,14 @@ impl CairoRunner {
         hint_processor: &mut dyn HintProcessor,
     ) -> Result<(), VirtualMachineError> {
         let references = &self.program.shared_program_data.reference_manager;
-        #[cfg(not(feature = "extensive_hints"))]
-        let hint_data = self.get_hint_data(references, hint_processor)?;
-        #[cfg(feature = "extensive_hints")]
-        let mut hint_data = self.get_hint_data(references, hint_processor)?;
-        #[cfg(feature = "extensive_hints")]
-        let mut hint_ranges = self
-            .program
-            .shared_program_data
-            .hints_collection
-            .hints_ranges
-            .clone();
-        #[cfg(not(feature = "extensive_hints"))]
-        let hint_data = &self
-            .program
-            .shared_program_data
-            .hints_collection
-            .get_hint_range_for_pc(self.vm.get_pc().offset)
-            .and_then(|range| {
-                range.and_then(|(start, length)| hint_data.get(start..start + length.get()))
-            })
-            .unwrap_or(&[]);
+        let mut hints = RunHints::new(
+            self.get_hint_data(references, hint_processor)?,
+            &self
+                .program
+                .shared_program_data
+                .hints_collection
+                .hints_ranges,
+        );
 
         for remaining_steps in (1..=steps).rev() {
             if self.final_pc.as_ref() == Some(&self.vm.get_pc()) {
@@ -863,12 +835,7 @@ impl CairoRunner {
             self.vm.step(
                 hint_processor,
                 &mut self.exec_scopes,
-                #[cfg(feature = "extensive_hints")]
-                &mut hint_data,
-                #[cfg(not(feature = "extensive_hints"))]
-                hint_data,
-                #[cfg(feature = "extensive_hints")]
-                &mut hint_ranges,
+                &mut hints,
                 #[cfg(feature = "test_utils")]
                 &self.program.constants,
             )?;
