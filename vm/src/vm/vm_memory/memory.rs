@@ -288,7 +288,6 @@ impl Memory {
         Ok(addr.into())
     }
 
-
     fn flatten_relocation_rules(&mut self) -> Result<(), MemoryError> {
         let keys: Vec<usize> = self.relocation_rules.keys().copied().collect();
         let max_hops = self.relocation_rules.len().saturating_add(1);
