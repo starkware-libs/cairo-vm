@@ -3,10 +3,6 @@
 //! This lives outside the `cairo-vm` crate on purpose: executing Cairo 1 hints means speaking the
 //! compiler's `Hint` AST, so this crate carries the `cairo-lang-*` dependency that `cairo-vm` does
 //! not. Running Cairo 0 programs pulls in none of it.
-//!
-//! ## Feature Flags
-//! - `extensive_hints`: forwards to [`cairo_vm`]'s feature of the same name, which lets a hint
-//!   extend the set of hints used for the rest of the run.
 
 #![deny(warnings)]
 #![forbid(unsafe_code)]
