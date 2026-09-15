@@ -8,10 +8,6 @@ repository.workspace = true
 readme.workspace = true
 keywords.workspace = true
 
-[features]
-# Allows extending the set of hints for the current vm run from within a hint.
-extensive_hints = ["cairo-vm/extensive_hints"]
-
 [dependencies]
 cairo-vm.workspace = true
 

@@ -43,7 +43,6 @@ The `vm` crate has several feature flags that control compilation:
 - `std` (default) — Standard library support. Disable for `no_std`/WASM targets.
 - `cairo-0-secp-hints` — Enables secp256k1/secp256r1 hint implementations for Cairo 0.
 - `cairo-0-data-availability-hints` — Enables data availability-related hints for Cairo 0.
-- `extensive_hints` — Allows extending the hint set at runtime from within a hint.
 - `test_utils` — Exposes test utilities and derives `Arbitrary` for fuzzing.
 - `tracer` — Marker flag used by `cairo-vm-cli`'s `with_tracer` feature to conditionally compile tracer support.
 
