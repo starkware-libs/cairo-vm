@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785140206384,
+  "lastUpdate": 1790667573381,
   "repoUrl": "https://github.com/starkware-libs/cairo-vm",
   "entries": {
     "Benchmark": [
@@ -133780,6 +133780,42 @@ window.BENCHMARK_DATA = {
             "name": "parse program",
             "value": 8408366,
             "range": "± 130711",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "104711814+orizi@users.noreply.github.com",
+            "name": "orizi",
+            "username": "orizi"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "658e4b7b55251fd44d05d302d8d8e614bdce7846",
+          "message": "ci: fix action pinning violations and EOL debian-11 canary (#2399)\n\n* ci: fix action pinning violations and EOL debian-11 canary\n\n- Pin the one remaining tag-referenced actions/cache/restore to the v3\n  commit SHA (org policy rejects tag-pinned actions).\n- Run cargo-machete directly: the bnjbvr/cargo-machete action internally\n  uses clechasseur/rs-cargo by tag, which the policy rejects transitively.\n- Move the install canary from debian:11 (EOL, expired Release files) to\n  debian:12.\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n* ci: bump rust.yml cache actions v3 -> v4\n\nUnder Node 24, the v3 cache/restore action logs the fail-on-cache-miss\nerror but exits 0, so a cache miss silently produces jobs running with\nincomplete program caches (and merge-caches then persists a poisoned\nall-programs entry in the PR's cache scope). v4 fails properly, and its\nentries use a different cache version, which also side-steps\nalready-poisoned v3 entries.\n\niai_pr/iai_main/fuzzer still use v3: bumping the iai pair requires\nrepopulating the main-scoped baseline caches first, or PR iai runs will\nhard-fail on the (previously silent) baseline miss.\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n* ci: skip the empty test-suite cache restore\n\nvm/src/tests/cairo_test_suite has no programs on main, so its build\ntarget produces nothing, no cache is ever saved, and the restore in\nmerge-caches can never hit (previously masked by the v3 exit-0 bug).\nSkip the restore while the suite is empty; once programs land, hashFiles\nis non-empty and the step hard-fails on real misses again.\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-09-29T07:13:10Z",
+          "tree_id": "0cc9bc0dd2e0a587d8c4887f27da9c840fd53868",
+          "url": "https://github.com/starkware-libs/cairo-vm/commit/658e4b7b55251fd44d05d302d8d8e614bdce7846"
+        },
+        "date": 1790667565095,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "initialize",
+            "value": 11947,
+            "range": "± 366",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse program",
+            "value": 8411574,
+            "range": "± 117123",
             "unit": "ns/iter"
           }
         ]
