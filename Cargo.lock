@@ -884,12 +884,8 @@ version = "3.2.0"
 dependencies = [
  "anyhow",
  "arbitrary",
- "ark-ff",
- "ark-std",
  "assert_matches",
  "bitvec",
- "cairo-lang-casm",
- "cairo-lang-starknet-classes",
  "clap",
  "criterion",
  "generic-array",
@@ -950,6 +946,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "cairo1-hint-processor"
+version = "3.2.0"
+dependencies = [
+ "ark-ff",
+ "ark-std",
+ "assert_matches",
+ "cairo-lang-casm",
+ "cairo-lang-starknet-classes",
+ "cairo-vm",
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+ "rstest",
+ "serde_json",
+]
+
+[[package]]
 name = "cairo1-run"
 version = "3.2.0"
 dependencies = [
@@ -961,6 +974,7 @@ dependencies = [
  "cairo-lang-sierra-type-size",
  "cairo-lang-utils",
  "cairo-vm",
+ "cairo1-hint-processor",
  "clap",
  "itertools 0.11.0",
  "num-bigint",

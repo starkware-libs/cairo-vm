@@ -11,6 +11,11 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 ---
 
 #### Upcoming Changes
+* refactor(BREAKING): move the Cairo 1 hint processor into its own `cairo1-hint-processor` crate, so `cairo-vm` no longer depends on `cairo-lang-*` [#2390](https://github.com/starkware-libs/cairo-vm/pull/2390)
+  * The `cairo-1-hints` feature is removed; depend on `cairo1-hint-processor` instead
+  * `cairo_vm::hint_processor::cairo_1_hint_processor::*` moved to `cairo1_hint_processor::*`
+  * `impl TryFrom<CasmContractClass> for Program` is now `cairo1_hint_processor::program_from_casm_contract_class`
+
 * ci: pin GitHub Actions to commit SHAs and bump deprecated `upload-artifact`/`download-artifact` to v4 [#2388](https://github.com/starkware-libs/cairo-vm/pull/2388)
 
 * fix: remove feature mod_builtin [#2387](https://github.com/starkware-libs/cairo-vm/pull/2387)

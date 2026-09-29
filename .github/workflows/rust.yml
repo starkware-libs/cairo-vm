@@ -216,7 +216,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        crate: ["vm", "cairo-vm-cli", "cairo1-run"]
+        crate: ["vm", "cairo-vm-cli", "cairo1-hint-processor", "cairo1-run"]
     runs-on: ubuntu-24.04
     steps:
     - name: Install Rust
@@ -344,7 +344,7 @@ jobs:
         export PARTITION=${MATRIX_TARGET#*#}
         cargo llvm-cov nextest --lcov --output-path lcov-${{ matrix.target }}-${{ matrix.special_features }}.info \
             --partition count:${PARTITION}/4 \
-            --workspace --features "cairo-1-hints, test_utils, ${{ matrix.special_features }}"
+            --workspace --features "test_utils, ${{ matrix.special_features }}"
 
     - name: Save coverage
       uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4

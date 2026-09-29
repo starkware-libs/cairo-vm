@@ -1,5 +1,6 @@
-use crate::{tests::*, vm::runners::cairo_runner::ResourceTracker};
+use super::*;
 use assert_matches::assert_matches;
+use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 
 #[test]
 fn test_init_squash_data() {
