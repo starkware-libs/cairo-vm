@@ -297,8 +297,8 @@ endif
 
 test: cairo_proof_programs cairo_test_programs cairo_test_suite_programs cairo_1_test_contracts cairo_2_test_contracts cairo_1_program
 	$(TEST_COMMAND) --workspace --features "test_utils"
-test-extensive_hints: cairo_proof_programs cairo_test_programs cairo_1_test_contracts cairo_1_program cairo_2_test_contracts 
-	$(TEST_COMMAND) --workspace --features "test_utils, cairo-0-secp-hints, cairo-0-data-availability-hints, extensive_hints"
+test-cairo-0-hints: cairo_proof_programs cairo_test_programs cairo_1_test_contracts cairo_1_program cairo_2_test_contracts
+	$(TEST_COMMAND) --workspace --features "test_utils, cairo-0-secp-hints, cairo-0-data-availability-hints"
 
 check-fmt:
 	cargo fmt --all -- --check

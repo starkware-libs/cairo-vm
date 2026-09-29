@@ -144,17 +144,10 @@ impl DictManagerExecScope {
                             .into_boxed_str(),
                     ));
                 }
-                #[cfg(feature = "extensive_hints")]
-                {
-                    vm.add_relocation_rule(
-                        tracker.start,
-                        MaybeRelocatable::RelocatableValue(prev_end),
-                    )?;
-                }
-                #[cfg(not(feature = "extensive_hints"))]
-                {
-                    vm.add_relocation_rule(tracker.start, prev_end)?;
-                }
+                vm.add_relocation_rule(
+                    tracker.start,
+                    MaybeRelocatable::RelocatableValue(prev_end),
+                )?;
 
                 prev_end += (tracker.end.unwrap_or_default() - tracker.start)?;
                 prev_end += 1;
