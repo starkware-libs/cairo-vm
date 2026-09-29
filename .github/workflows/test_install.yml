@@ -37,10 +37,10 @@ jobs:
           make check
 
   install_debian:
-    name: "Install on debian-11"
+    name: "Install on debian-12"
     runs-on: ubuntu-24.04
     container:
-      image: debian:11
+      image: debian:12
     defaults:
       run:
         shell: bash {0}
