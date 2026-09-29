@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790667573381,
+  "lastUpdate": 1790676606571,
   "repoUrl": "https://github.com/starkware-libs/cairo-vm",
   "entries": {
     "Benchmark": [
@@ -133816,6 +133816,42 @@ window.BENCHMARK_DATA = {
             "name": "parse program",
             "value": 8411574,
             "range": "± 117123",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "104711814+orizi@users.noreply.github.com",
+            "name": "orizi",
+            "username": "orizi"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3cf5d5042aec0c48f4e970be764ee54d7ff7d391",
+          "message": "refactor: move the Cairo 1 hint processor into its own crate (#2390)\n\nThe cairo-vm library depended on cairo-lang-casm and cairo-lang-starknet-classes\nbehind the cairo-1-hints feature, which pulled the whole Cairo 1 compiler into\nthe dependency tree of anyone who only wanted to run Cairo 0 programs.\n\nExecuting Cairo 1 hints means speaking the compiler's Hint AST, so rather than\ncopying those definitions into cairo-vm, the hint processor moves to a new\ncairo1-hint-processor crate that owns the compiler dependency. cairo-vm is now\nfree of cairo-lang-* in every dependency kind, including dev, and the\ncairo-1-hints feature is gone rather than merely emptied.\n\nThe move needed no new public surface on cairo-vm: the tests that came along\nswitched from the private CairoRunner::program field to the existing\nget_program()/data_len() accessors.\n\nTryFrom<CasmContractClass> for Program could not come along as an impl, since\nboth types are foreign to the new crate; it is now the free function\nprogram_from_casm_contract_class. Nothing outside cairo-vm's own tests called\nit, so nothing is stranded.\n\ncairo1-run needed only an import swap - it already produced\ncairo_lang_casm::hints::Hint and the hint processor still consumes exactly that\ntype, so no conversion layer exists anywhere.\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-29T09:45:31Z",
+          "tree_id": "d762f1d7903f6bdc59c8aef51ca6af7c7efaa91f",
+          "url": "https://github.com/starkware-libs/cairo-vm/commit/3cf5d5042aec0c48f4e970be764ee54d7ff7d391"
+        },
+        "date": 1790676599417,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "initialize",
+            "value": 7876,
+            "range": "± 208",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse program",
+            "value": 6640325,
+            "range": "± 237007",
             "unit": "ns/iter"
           }
         ]
