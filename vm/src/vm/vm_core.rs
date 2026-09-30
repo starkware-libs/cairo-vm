@@ -142,7 +142,8 @@ pub struct VirtualMachine {
     run_finished: bool,
     // This flag is a parallel to the one in `struct Cairo0RunConfig`.
     pub(crate) disable_trace_padding: bool,
-    instruction_cache: Vec<Option<Instruction>>,
+    /// Decoded-instruction caches, one per (non-temporary) segment code runs from.
+    instruction_cache: Vec<Vec<Option<Instruction>>>,
     #[cfg(feature = "test_utils")]
     pub(crate) hooks: Option<Box<dyn crate::vm::hooks::StepHooks>>,
     pub(crate) relocation_table: Option<Vec<usize>>,
@@ -619,40 +620,52 @@ impl VirtualMachine {
     }
 
     pub fn step_instruction(&mut self) -> Result<(), VirtualMachineError> {
-        if self.run_context.pc.segment_index == 0 {
-            // Run instructions from program segment, using instruction cache
-            let pc = self.run_context.pc.offset;
-
-            if self.segments.memory.data[0].len() <= pc {
-                return Err(MemoryError::UnknownMemoryCell(Box::new((0, pc).into())))?;
-            }
-
-            let mut inst_cache = core::mem::take(&mut self.instruction_cache);
-            inst_cache.resize((pc + 1).max(inst_cache.len()), None);
-
-            let instruction = inst_cache.get_mut(pc).unwrap();
-            if instruction.is_none() {
-                *instruction = Some(self.decode_current_instruction()?);
-            }
-            let instruction = instruction.as_ref().unwrap();
-
-            if !self.skip_instruction_execution {
-                self.run_instruction(instruction)?;
-            } else {
-                self.run_context.pc += instruction.size();
-                self.skip_instruction_execution = false;
-            }
-            self.instruction_cache = inst_cache;
-        } else {
-            // Run instructions from programs loaded in other segments, without instruction cache
+        let pc = self.run_context.pc;
+        let Ok(segment_index) = usize::try_from(pc.segment_index) else {
+            // Run instructions from temporary segments without an instruction cache.
             let instruction = self.decode_current_instruction()?;
+            return self.run_or_skip_instruction(&instruction);
+        };
+        // Run instructions from a regular segment, using the instruction cache. The cache is
+        // taken out of `self` so a cached instruction can be borrowed while it runs.
+        let mut cache = core::mem::take(&mut self.instruction_cache);
+        let cached = cache
+            .get(segment_index)
+            .and_then(|segment_cache| segment_cache.get(pc.offset))
+            .and_then(Option::as_ref);
+        let result = match cached {
+            Some(instruction) => self.run_or_skip_instruction(instruction),
+            None => self.decode_current_instruction().and_then(|instruction| {
+                if cache.len() <= segment_index {
+                    cache.resize(segment_index + 1, Vec::new());
+                }
+                let segment_cache = &mut cache[segment_index];
+                // Size the cache for the whole segment at once: code was just decoded from it,
+                // so the rest of it is likely code as well. The decoded cell is in the segment,
+                // so this also covers `pc.offset`.
+                let segment_len = self.segments.memory.data[segment_index].len();
+                if segment_cache.len() < segment_len {
+                    segment_cache.resize(segment_len, None);
+                }
+                segment_cache[pc.offset] = Some(instruction);
+                self.run_or_skip_instruction(&instruction)
+            }),
+        };
+        self.instruction_cache = cache;
+        result
+    }
 
-            if !self.skip_instruction_execution {
-                self.run_instruction(&instruction)?;
-            } else {
-                self.run_context.pc += instruction.size();
-                self.skip_instruction_execution = false;
-            }
+    /// Runs the instruction, or just advances the pc past it if it was marked to be skipped.
+    #[inline(always)]
+    fn run_or_skip_instruction(
+        &mut self,
+        instruction: &Instruction,
+    ) -> Result<(), VirtualMachineError> {
+        if !self.skip_instruction_execution {
+            self.run_instruction(instruction)?;
+        } else {
+            self.run_context.pc += instruction.size();
+            self.skip_instruction_execution = false;
         }
         Ok(())
     }
@@ -1070,9 +1083,6 @@ impl VirtualMachine {
         ptr: Relocatable,
         data: &[MaybeRelocatable],
     ) -> Result<Relocatable, MemoryError> {
-        if ptr.segment_index == 0 {
-            self.instruction_cache.resize(data.len(), None);
-        }
         self.segments.load_data(ptr, data)
     }
 
