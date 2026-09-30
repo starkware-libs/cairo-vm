@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790676606571,
+  "lastUpdate": 1790762100522,
   "repoUrl": "https://github.com/starkware-libs/cairo-vm",
   "entries": {
     "Benchmark": [
@@ -133852,6 +133852,42 @@ window.BENCHMARK_DATA = {
             "name": "parse program",
             "value": 6640325,
             "range": "± 237007",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "104711814+orizi@users.noreply.github.com",
+            "name": "orizi",
+            "username": "orizi"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "22f84a672a90017cd71a6bfd26ad9c9ad1946627",
+          "message": "refactor: remove the extensive_hints feature (#2401)\n\nThe feature changed public signatures (step, step_hint, relocate_value,\nadd_relocation_rule), forcing cfg pairs through the whole crate, while\nenabling it cost 20-30% on hint-heavy workloads (a HashMap lookup per\nstep instead of a vector index).\n\nUnify on a hybrid that keeps both capabilities without the flag: the\nprogram's own hints stay in the vector-indexed ranges (the fast path),\nand hints added at runtime (bootloader / Starknet OS loading programs\nwith their hints) go into an overflow map that is only consulted when\nnon-empty. At a pc that has both, the runtime-added hints take\nprecedence, preserving the extensive insert semantics; relocation rules\nalways accept MaybeRelocatable targets.\n\nSide benefits: run_until_pc/run_for_steps no longer clone the hint\nranges per call, and per-pc hint resolution now lives in step_hint, so\nthe runner loops share one shape.\n\nThe run's hint state (the compiled hint data, the program's static hint\nranges and the runtime-added ranges) is bundled into one RunHints struct,\nwhich resolves per-pc ranges and absorbs hint extensions; step/step_hint\ntake it as a single argument.\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-09-30T09:28:19Z",
+          "tree_id": "8872cef1232e2f9abc70b0f246e0b2da0a5da63e",
+          "url": "https://github.com/starkware-libs/cairo-vm/commit/22f84a672a90017cd71a6bfd26ad9c9ad1946627"
+        },
+        "date": 1790762091894,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "initialize",
+            "value": 12224,
+            "range": "± 75",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse program",
+            "value": 6946555,
+            "range": "± 307343",
             "unit": "ns/iter"
           }
         ]
