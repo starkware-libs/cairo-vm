@@ -11,6 +11,8 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 ---
 
 #### Upcoming Changes
+* perf: pass operands by reference in `deduce_op1` and `update_registers` [#2404](https://github.com/starkware-libs/cairo-vm/pull/2404)
+
 * refactor(BREAKING): remove the `extensive_hints` feature; hints added at runtime are now always supported, at no cost to runs that add none [#2401](https://github.com/starkware-libs/cairo-vm/pull/2401)
   * The `extensive_hints` feature is removed from `cairo-vm` and `cairo1-hint-processor`
   * `VirtualMachine::step`/`step_hint` take a `RunHints` (the compiled hint data, the program's hint ranges and the runtime-added ones)
