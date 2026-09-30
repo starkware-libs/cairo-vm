@@ -70,6 +70,14 @@ impl MemoryCell {
     pub fn get_value(&self) -> Option<MaybeRelocatable> {
         self.is_some().then(|| (*self).into())
     }
+
+    /// Compares the values held by two cells, ignoring the ACCESS flag.
+    /// Both the felt and the relocatable encodings are canonical, so comparing the raw words is
+    /// equivalent to comparing the corresponding `MaybeRelocatable`s.
+    pub fn eq_value(&self, other: &Self) -> bool {
+        let mask = !Self::ACCESS_MASK;
+        (self.0[0] & mask, &self.0[1..]) == (other.0[0] & mask, &other.0[1..])
+    }
 }
 
 impl From<MaybeRelocatable> for MemoryCell {
@@ -204,8 +212,16 @@ impl Memory {
         MaybeRelocatable: From<V>,
     {
         let val = MaybeRelocatable::from(val);
-        let segment = self.get_segment(key)?;
-        let (_, value_offset) = from_relocatable_to_indexes(key);
+        let (value_index, value_offset) = from_relocatable_to_indexes(key);
+        let data = if key.segment_index.is_negative() {
+            &mut self.temp_data
+        } else {
+            &mut self.data
+        };
+        let data_len = data.len();
+        let segment = data
+            .get_mut(value_index)
+            .ok_or_else(|| MemoryError::UnallocatedSegment(Box::new((value_index, data_len))))?;
 
         //Check if the element is inserted next to the last one on the segment
         //Forgoing this check would allow data to be inserted in a different index
@@ -221,19 +237,18 @@ impl Memory {
         }
         // At this point there's *something* in there
 
-        match segment[value_offset].get_value() {
-            None => segment[value_offset] = MemoryCell::new(val),
-            Some(current_cell) => {
-                if current_cell != val {
-                    //Existing memory cannot be changed
-                    return Err(MemoryError::InconsistentMemory(Box::new((
-                        key,
-                        current_cell,
-                        val,
-                    ))));
-                }
-            }
-        };
+        let new_cell = MemoryCell::new(val);
+        let cell = &mut segment[value_offset];
+        if cell.is_none() {
+            *cell = new_cell;
+        } else if !cell.eq_value(&new_cell) {
+            //Existing memory cannot be changed
+            return Err(MemoryError::InconsistentMemory(Box::new((
+                key,
+                (*cell).into(),
+                new_cell.into(),
+            ))));
+        }
         self.validate_memory_cell(key)
     }
 
@@ -1856,6 +1871,25 @@ mod memory_tests {
         assert!(!memory.data[0][0].is_accessed());
         memory.mark_as_accessed(relocatable!(0, 0));
         assert!(memory.data[0][0].is_accessed());
+    }
+
+    #[test]
+    fn memory_cell_eq_value_ignores_access_flag() {
+        let felt_cell = MemoryCell::new(MaybeRelocatable::from(Felt252::from(7)));
+        let mut accessed_felt_cell = felt_cell;
+        accessed_felt_cell.mark_accessed();
+        assert!(felt_cell.eq_value(&accessed_felt_cell));
+        assert!(accessed_felt_cell.eq_value(&felt_cell));
+
+        let other_felt_cell = MemoryCell::new(MaybeRelocatable::from(Felt252::from(8)));
+        assert!(!felt_cell.eq_value(&other_felt_cell));
+
+        let reloc_cell = MemoryCell::new(MaybeRelocatable::from((1, 2)));
+        let mut accessed_reloc_cell = reloc_cell;
+        accessed_reloc_cell.mark_accessed();
+        assert!(reloc_cell.eq_value(&accessed_reloc_cell));
+        assert!(!reloc_cell.eq_value(&MemoryCell::new(MaybeRelocatable::from((1, 3)))));
+        assert!(!reloc_cell.eq_value(&felt_cell));
     }
 
     #[test]
