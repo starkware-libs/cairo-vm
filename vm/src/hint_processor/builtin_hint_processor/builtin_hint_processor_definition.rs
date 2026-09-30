@@ -25,17 +25,21 @@ use super::{
 };
 use crate::Felt252;
 use crate::{
-    hint_processor::builtin_hint_processor::secp::secp_utils::{SECP256R1_ALPHA, SECP256R1_P},
-    utils::CAIRO_PRIME,
-};
-use crate::{
+    any_box,
     hint_processor::{
         builtin_hint_processor::secp::ec_utils::{
             ec_double_assign_new_x, ec_double_assign_new_x_v2,
         },
-        hint_processor_definition::HintProcessorLogic,
+        hint_processor_definition::{get_ids_data, HintProcessorLogic},
     },
-    vm::runners::cairo_runner::{ResourceTracker, RunResources},
+    vm::{
+        errors::vm_errors::VirtualMachineError,
+        runners::cairo_runner::{ResourceTracker, RunResources},
+    },
+};
+use crate::{
+    hint_processor::builtin_hint_processor::secp::secp_utils::{SECP256R1_ALPHA, SECP256R1_P},
+    utils::CAIRO_PRIME,
 };
 use crate::{
     hint_processor::{
@@ -187,204 +191,305 @@ impl BuiltinHintProcessor {
     }
 }
 
-impl HintProcessorLogic for BuiltinHintProcessor {
-    fn execute_hint(
-        &mut self,
-        vm: &mut VirtualMachine,
-        exec_scopes: &mut ExecutionScopes,
-        hint_data: &Box<dyn Any>,
-    ) -> Result<(), HintError> {
-        let hint_data = hint_data
-            .downcast_ref::<HintProcessorData>()
-            .ok_or(HintError::WrongHintData)?;
-        let constants = hint_data.constants.as_ref();
+/// The signature of the implementation of a hint in the builtin hint processor.
+pub(crate) type HintImpl =
+    fn(&mut VirtualMachine, &mut ExecutionScopes, &HintProcessorData) -> Result<(), HintError>;
 
-        if let Some(hint_func) = self.extra_hints.get(&hint_data.code) {
-            return hint_func.0(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-                constants,
-            );
+/// Resolves the implementation of a hint of the builtin hint processor by its code.
+pub(crate) fn resolve_hint(code: &str) -> Option<HintImpl> {
+    let hint_impl: HintImpl = match code {
+        hint_code::ADD_SEGMENT => |vm, _exec_scopes, _hint_data| add_segment(vm),
+        hint_code::IS_NN => {
+            |vm, _exec_scopes, hint_data| is_nn(vm, &hint_data.ids_data, &hint_data.ap_tracking)
         }
-        match &*hint_data.code {
-            hint_code::ADD_SEGMENT => add_segment(vm),
-            hint_code::IS_NN => is_nn(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::IS_NN_OUT_OF_RANGE => {
+        hint_code::IS_NN_OUT_OF_RANGE => |vm, _exec_scopes, hint_data| {
+            {
                 is_nn_out_of_range(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::ASSERT_LE_FELT => assert_le_felt(
+        },
+        hint_code::ASSERT_LE_FELT => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            assert_le_felt(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 constants,
-            ),
-            hint_code::ASSERT_LE_FELT_EXCLUDED_2 => assert_le_felt_excluded_2(exec_scopes),
-            hint_code::ASSERT_LE_FELT_EXCLUDED_1 => assert_le_felt_excluded_1(vm, exec_scopes),
-            hint_code::ASSERT_LE_FELT_EXCLUDED_0 => assert_le_felt_excluded_0(vm, exec_scopes),
-            hint_code::IS_LE_FELT => is_le_felt(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::ASSERT_250_BITS => {
+            )
+        },
+        hint_code::ASSERT_LE_FELT_EXCLUDED_2 => {
+            |_vm, exec_scopes, _hint_data| assert_le_felt_excluded_2(exec_scopes)
+        }
+        hint_code::ASSERT_LE_FELT_EXCLUDED_1 => {
+            |vm, exec_scopes, _hint_data| assert_le_felt_excluded_1(vm, exec_scopes)
+        }
+        hint_code::ASSERT_LE_FELT_EXCLUDED_0 => {
+            |vm, exec_scopes, _hint_data| assert_le_felt_excluded_0(vm, exec_scopes)
+        }
+        hint_code::IS_LE_FELT => |vm, _exec_scopes, hint_data| {
+            is_le_felt(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::ASSERT_250_BITS => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            {
                 assert_250_bit(vm, &hint_data.ids_data, &hint_data.ap_tracking, constants)
             }
-            hint_code::IS_250_BITS => is_250_bits(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::IS_ADDR_BOUNDED => {
+        },
+        hint_code::IS_250_BITS => |vm, _exec_scopes, hint_data| {
+            is_250_bits(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::IS_ADDR_BOUNDED => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            {
                 is_addr_bounded(vm, &hint_data.ids_data, &hint_data.ap_tracking, constants)
             }
-            hint_code::IS_POSITIVE => is_positive(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::SPLIT_INT_ASSERT_RANGE => {
+        },
+        hint_code::IS_POSITIVE => |vm, _exec_scopes, hint_data| {
+            is_positive(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::SPLIT_INT_ASSERT_RANGE => |vm, _exec_scopes, hint_data| {
+            {
                 split_int_assert_range(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::SPLIT_INT => split_int(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::ASSERT_NOT_EQUAL => {
+        },
+        hint_code::SPLIT_INT => {
+            |vm, _exec_scopes, hint_data| split_int(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        }
+        hint_code::ASSERT_NOT_EQUAL => |vm, _exec_scopes, hint_data| {
+            {
                 assert_not_equal(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::ASSERT_NN => assert_nn(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::SQRT => sqrt(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::ASSERT_NOT_ZERO => {
+        },
+        hint_code::ASSERT_NN => {
+            |vm, _exec_scopes, hint_data| assert_nn(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        }
+        hint_code::SQRT => {
+            |vm, _exec_scopes, hint_data| sqrt(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        }
+        hint_code::ASSERT_NOT_ZERO => |vm, _exec_scopes, hint_data| {
+            {
                 assert_not_zero(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::IS_QUAD_RESIDUE => {
+        },
+        hint_code::IS_QUAD_RESIDUE => |vm, _exec_scopes, hint_data| {
+            {
                 is_quad_residue(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::VM_EXIT_SCOPE => exit_scope(exec_scopes),
-            hint_code::MEMCPY_ENTER_SCOPE => {
+        },
+        hint_code::VM_EXIT_SCOPE => |_vm, exec_scopes, _hint_data| exit_scope(exec_scopes),
+        hint_code::MEMCPY_ENTER_SCOPE => |vm, exec_scopes, hint_data| {
+            {
                 memcpy_enter_scope(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::MEMSET_ENTER_SCOPE => {
+        },
+        hint_code::MEMSET_ENTER_SCOPE => |vm, exec_scopes, hint_data| {
+            {
                 memset_enter_scope(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::MEMCPY_CONTINUE_COPYING => memset_step_loop(
+        },
+        hint_code::MEMCPY_CONTINUE_COPYING => |vm, exec_scopes, hint_data| {
+            memset_step_loop(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 "continue_copying",
-            ),
-            hint_code::MEMSET_CONTINUE_LOOP => memset_step_loop(
+            )
+        },
+        hint_code::MEMSET_CONTINUE_LOOP => |vm, exec_scopes, hint_data| {
+            memset_step_loop(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 "continue_loop",
-            ),
-            hint_code::SPLIT_FELT => {
+            )
+        },
+        hint_code::SPLIT_FELT => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            {
                 split_felt(vm, &hint_data.ids_data, &hint_data.ap_tracking, constants)
             }
-            hint_code::UNSIGNED_DIV_REM => {
+        },
+        hint_code::UNSIGNED_DIV_REM => |vm, _exec_scopes, hint_data| {
+            {
                 unsigned_div_rem(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::SIGNED_DIV_REM => {
+        },
+        hint_code::SIGNED_DIV_REM => |vm, _exec_scopes, hint_data| {
+            {
                 signed_div_rem(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::ASSERT_LT_FELT => {
+        },
+        hint_code::ASSERT_LT_FELT => |vm, _exec_scopes, hint_data| {
+            {
                 assert_lt_felt(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::FIND_ELEMENT => {
+        },
+        hint_code::FIND_ELEMENT => |vm, exec_scopes, hint_data| {
+            {
                 find_element(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::SEARCH_SORTED_LOWER => {
+        },
+        hint_code::SEARCH_SORTED_LOWER => |vm, exec_scopes, hint_data| {
+            {
                 search_sorted_lower(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::POW => pow(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::SET_ADD => set_add(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::DICT_NEW => dict_new(vm, exec_scopes),
-            hint_code::DICT_READ => {
+        },
+        hint_code::POW => {
+            |vm, _exec_scopes, hint_data| pow(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        }
+        hint_code::SET_ADD => {
+            |vm, _exec_scopes, hint_data| set_add(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        }
+        hint_code::DICT_NEW => |vm, exec_scopes, _hint_data| dict_new(vm, exec_scopes),
+        hint_code::DICT_READ => |vm, exec_scopes, hint_data| {
+            {
                 dict_read(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::DICT_WRITE => {
+        },
+        hint_code::DICT_WRITE => |vm, exec_scopes, hint_data| {
+            {
                 dict_write(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::DEFAULT_DICT_NEW => {
+        },
+        hint_code::DEFAULT_DICT_NEW => |vm, exec_scopes, hint_data| {
+            {
                 default_dict_new(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::SQUASH_DICT_INNER_FIRST_ITERATION => squash_dict_inner_first_iteration(
+        },
+        hint_code::SQUASH_DICT_INNER_FIRST_ITERATION => |vm, exec_scopes, hint_data| {
+            squash_dict_inner_first_iteration(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
-            ),
-            hint_code::USORT_ENTER_SCOPE => usort_enter_scope(exec_scopes),
-            hint_code::USORT_BODY => {
+            )
+        },
+        hint_code::USORT_ENTER_SCOPE => {
+            |_vm, exec_scopes, _hint_data| usort_enter_scope(exec_scopes)
+        }
+        hint_code::USORT_BODY => |vm, exec_scopes, hint_data| {
+            {
                 usort_body(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::USORT_VERIFY => {
+        },
+        hint_code::USORT_VERIFY => |vm, exec_scopes, hint_data| {
+            {
                 verify_usort(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::USORT_VERIFY_MULTIPLICITY_ASSERT => verify_multiplicity_assert(exec_scopes),
-            hint_code::USORT_VERIFY_MULTIPLICITY_BODY => verify_multiplicity_body(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-            ),
-            hint_code::BLAKE2S_COMPUTE => {
+        },
+        hint_code::USORT_VERIFY_MULTIPLICITY_ASSERT => {
+            |_vm, exec_scopes, _hint_data| verify_multiplicity_assert(exec_scopes)
+        }
+        hint_code::USORT_VERIFY_MULTIPLICITY_BODY => |vm, exec_scopes, hint_data| {
+            verify_multiplicity_body(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::BLAKE2S_COMPUTE => |vm, _exec_scopes, hint_data| {
+            {
                 compute_blake2s(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::VERIFY_ZERO_V1 | hint_code::VERIFY_ZERO_V2 => verify_zero(
+        },
+        hint_code::VERIFY_ZERO_V1 | hint_code::VERIFY_ZERO_V2 => |vm, exec_scopes, hint_data| {
+            verify_zero(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 &SECP_P,
-            ),
-            hint_code::VERIFY_ZERO_V3 => verify_zero(
+            )
+        },
+        hint_code::VERIFY_ZERO_V3 => |vm, exec_scopes, hint_data| {
+            verify_zero(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 &SECP_P_V2,
-            ),
-            hint_code::VERIFY_ZERO_EXTERNAL_SECP => verify_zero_with_external_const(
+            )
+        },
+        hint_code::VERIFY_ZERO_EXTERNAL_SECP => |vm, exec_scopes, hint_data| {
+            verify_zero_with_external_const(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
-            ),
-            hint_code::NONDET_BIGINT3_V1 | hint_code::NONDET_BIGINT3_V2 => {
-                nondet_bigint3(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
+            )
+        },
+        hint_code::NONDET_BIGINT3_V1 | hint_code::NONDET_BIGINT3_V2 => {
+            |vm, exec_scopes, hint_data| {
+                {
+                    nondet_bigint3(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
+                }
             }
-            hint_code::REDUCE_V1 => {
+        }
+        hint_code::REDUCE_V1 => |vm, exec_scopes, hint_data| {
+            {
                 reduce_v1(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::REDUCE_V2 => {
+        },
+        hint_code::REDUCE_V2 => |vm, exec_scopes, hint_data| {
+            {
                 reduce_v2(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::REDUCE_ED25519 => {
+        },
+        hint_code::REDUCE_ED25519 => |vm, exec_scopes, hint_data| {
+            {
                 ed25519_reduce(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::BLAKE2S_FINALIZE | hint_code::BLAKE2S_FINALIZE_V2 => {
-                finalize_blake2s(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::BLAKE2S_FINALIZE | hint_code::BLAKE2S_FINALIZE_V2 => {
+            |vm, _exec_scopes, hint_data| {
+                {
+                    finalize_blake2s(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+                }
             }
-            hint_code::BLAKE2S_FINALIZE_V3 => {
+        }
+        hint_code::BLAKE2S_FINALIZE_V3 => |vm, _exec_scopes, hint_data| {
+            {
                 finalize_blake2s_v3(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::BLAKE2S_ADD_UINT256 => {
+        },
+        hint_code::BLAKE2S_ADD_UINT256 => |vm, _exec_scopes, hint_data| {
+            {
                 blake2s_add_uint256(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::BLAKE2S_ADD_UINT256_BIGEND => {
+        },
+        hint_code::BLAKE2S_ADD_UINT256_BIGEND => |vm, _exec_scopes, hint_data| {
+            {
                 blake2s_add_uint256_bigend(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::IS_LESS_THAN_63_BITS_AND_NOT_END => {
+        },
+        hint_code::IS_LESS_THAN_63_BITS_AND_NOT_END => |vm, _exec_scopes, hint_data| {
+            {
                 is_less_than_63_bits_and_not_end(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::BLAKE2S_UNPACK_FELTS => {
+        },
+        hint_code::BLAKE2S_UNPACK_FELTS => |vm, _exec_scopes, hint_data| {
+            {
                 blake2s_unpack_felts(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::UNSAFE_KECCAK => {
+        },
+        hint_code::UNSAFE_KECCAK => |vm, exec_scopes, hint_data| {
+            {
                 unsafe_keccak(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::UNSAFE_KECCAK_FINALIZE => {
+        },
+        hint_code::UNSAFE_KECCAK_FINALIZE => |vm, _exec_scopes, hint_data| {
+            {
                 unsafe_keccak_finalize(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::SQUASH_DICT_INNER_SKIP_LOOP => squash_dict_inner_skip_loop(
+        },
+        hint_code::SQUASH_DICT_INNER_SKIP_LOOP => |vm, exec_scopes, hint_data| {
+            squash_dict_inner_skip_loop(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
-            ),
-            hint_code::SQUASH_DICT_INNER_CHECK_ACCESS_INDEX => {
+            )
+        },
+        hint_code::SQUASH_DICT_INNER_CHECK_ACCESS_INDEX => |vm, exec_scopes, hint_data| {
+            {
                 squash_dict_inner_check_access_index(
                     vm,
                     exec_scopes,
@@ -392,17 +497,23 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                     &hint_data.ap_tracking,
                 )
             }
-            hint_code::SQUASH_DICT_INNER_CONTINUE_LOOP => squash_dict_inner_continue_loop(
+        },
+        hint_code::SQUASH_DICT_INNER_CONTINUE_LOOP => |vm, exec_scopes, hint_data| {
+            squash_dict_inner_continue_loop(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
-            ),
-            hint_code::SQUASH_DICT_INNER_ASSERT_LEN_KEYS => {
-                squash_dict_inner_assert_len_keys(exec_scopes)
-            }
-            hint_code::SQUASH_DICT_INNER_LEN_ASSERT => squash_dict_inner_len_assert(exec_scopes),
-            hint_code::SQUASH_DICT_INNER_USED_ACCESSES_ASSERT => {
+            )
+        },
+        hint_code::SQUASH_DICT_INNER_ASSERT_LEN_KEYS => {
+            |_vm, exec_scopes, _hint_data| squash_dict_inner_assert_len_keys(exec_scopes)
+        }
+        hint_code::SQUASH_DICT_INNER_LEN_ASSERT => {
+            |_vm, exec_scopes, _hint_data| squash_dict_inner_len_assert(exec_scopes)
+        }
+        hint_code::SQUASH_DICT_INNER_USED_ACCESSES_ASSERT => |vm, exec_scopes, hint_data| {
+            {
                 squash_dict_inner_used_accesses_assert(
                     vm,
                     exec_scopes,
@@ -410,120 +521,165 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                     &hint_data.ap_tracking,
                 )
             }
-            hint_code::SQUASH_DICT_INNER_NEXT_KEY => squash_dict_inner_next_key(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-            ),
-            hint_code::SQUASH_DICT => {
+        },
+        hint_code::SQUASH_DICT_INNER_NEXT_KEY => |vm, exec_scopes, hint_data| {
+            squash_dict_inner_next_key(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::SQUASH_DICT => |vm, exec_scopes, hint_data| {
+            {
                 squash_dict(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::VM_ENTER_SCOPE => enter_scope(exec_scopes),
-            hint_code::DICT_UPDATE => {
+        },
+        hint_code::VM_ENTER_SCOPE => |_vm, exec_scopes, _hint_data| enter_scope(exec_scopes),
+        hint_code::DICT_UPDATE => |vm, exec_scopes, hint_data| {
+            {
                 dict_update(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::DICT_SQUASH_COPY_DICT => {
+        },
+        hint_code::DICT_SQUASH_COPY_DICT => |vm, exec_scopes, hint_data| {
+            {
                 dict_squash_copy_dict(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::DICT_SQUASH_UPDATE_PTR => {
+        },
+        hint_code::DICT_SQUASH_UPDATE_PTR => |vm, exec_scopes, hint_data| {
+            {
                 dict_squash_update_ptr(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::UINT256_ADD => {
+        },
+        hint_code::UINT256_ADD => |vm, _exec_scopes, hint_data| {
+            {
                 uint256_add(vm, &hint_data.ids_data, &hint_data.ap_tracking, false)
             }
-            hint_code::UINT256_ADD_LOW => {
+        },
+        hint_code::UINT256_ADD_LOW => |vm, _exec_scopes, hint_data| {
+            {
                 uint256_add(vm, &hint_data.ids_data, &hint_data.ap_tracking, true)
             }
-            hint_code::UINT128_ADD => uint128_add(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::UINT256_SUB => uint256_sub(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::SPLIT_64 => split_64(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::UINT256_SQRT => {
+        },
+        hint_code::UINT128_ADD => |vm, _exec_scopes, hint_data| {
+            uint128_add(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::UINT256_SUB => |vm, _exec_scopes, hint_data| {
+            uint256_sub(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::SPLIT_64 => {
+            |vm, _exec_scopes, hint_data| split_64(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        }
+        hint_code::UINT256_SQRT => |vm, _exec_scopes, hint_data| {
+            {
                 uint256_sqrt(vm, &hint_data.ids_data, &hint_data.ap_tracking, false)
             }
-            hint_code::UINT256_SQRT_FELT => {
+        },
+        hint_code::UINT256_SQRT_FELT => |vm, _exec_scopes, hint_data| {
+            {
                 uint256_sqrt(vm, &hint_data.ids_data, &hint_data.ap_tracking, true)
             }
-            hint_code::UINT256_SIGNED_NN => {
+        },
+        hint_code::UINT256_SIGNED_NN => |vm, _exec_scopes, hint_data| {
+            {
                 uint256_signed_nn(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::UINT256_UNSIGNED_DIV_REM => {
+        },
+        hint_code::UINT256_UNSIGNED_DIV_REM => |vm, _exec_scopes, hint_data| {
+            {
                 uint256_unsigned_div_rem(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::UINT256_EXPANDED_UNSIGNED_DIV_REM => {
+        },
+        hint_code::UINT256_EXPANDED_UNSIGNED_DIV_REM => |vm, _exec_scopes, hint_data| {
+            {
                 uint256_expanded_unsigned_div_rem(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::BIGINT_TO_UINT256 => {
+        },
+        hint_code::BIGINT_TO_UINT256 => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            {
                 bigint_to_uint256(vm, &hint_data.ids_data, &hint_data.ap_tracking, constants)
             }
-            hint_code::IS_ZERO_PACK_V1 | hint_code::IS_ZERO_PACK_V2 => {
+        },
+        hint_code::IS_ZERO_PACK_V1 | hint_code::IS_ZERO_PACK_V2 => |vm, exec_scopes, hint_data| {
+            {
                 is_zero_pack(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::IS_ZERO_NONDET | hint_code::IS_ZERO_INT => is_zero_nondet(vm, exec_scopes),
-            hint_code::IS_ZERO_PACK_EXTERNAL_SECP_V1 | hint_code::IS_ZERO_PACK_EXTERNAL_SECP_V2 => {
-                is_zero_pack_external_secp(
-                    vm,
-                    exec_scopes,
-                    &hint_data.ids_data,
-                    &hint_data.ap_tracking,
-                )
+        },
+        hint_code::IS_ZERO_NONDET | hint_code::IS_ZERO_INT => {
+            |vm, exec_scopes, _hint_data| is_zero_nondet(vm, exec_scopes)
+        }
+        hint_code::IS_ZERO_PACK_EXTERNAL_SECP_V1 | hint_code::IS_ZERO_PACK_EXTERNAL_SECP_V2 => {
+            |vm, exec_scopes, hint_data| {
+                {
+                    is_zero_pack_external_secp(
+                        vm,
+                        exec_scopes,
+                        &hint_data.ids_data,
+                        &hint_data.ap_tracking,
+                    )
+                }
             }
-            hint_code::IS_ZERO_PACK_ED25519 => {
+        }
+        hint_code::IS_ZERO_PACK_ED25519 => |vm, exec_scopes, hint_data| {
+            {
                 ed25519_is_zero_pack(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::IS_ZERO_ASSIGN_SCOPE_VARS => is_zero_assign_scope_variables(exec_scopes),
-            hint_code::IS_ZERO_ASSIGN_SCOPE_VARS_EXTERNAL_SECP => {
+        },
+        hint_code::IS_ZERO_ASSIGN_SCOPE_VARS => {
+            |_vm, exec_scopes, _hint_data| is_zero_assign_scope_variables(exec_scopes)
+        }
+        hint_code::IS_ZERO_ASSIGN_SCOPE_VARS_EXTERNAL_SECP => |_vm, exec_scopes, _hint_data| {
+            {
                 is_zero_assign_scope_variables_external_const(exec_scopes)
             }
-            hint_code::IS_ZERO_ASSIGN_SCOPE_VARS_ED25519 => {
-                ed25519_is_zero_assign_scope_vars(exec_scopes)
-            }
-            hint_code::DIV_MOD_N_PACKED_DIVMOD_V1 => div_mod_n_packed_divmod(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-            ),
-            hint_code::GET_FELT_BIT_LENGTH => {
+        },
+        hint_code::IS_ZERO_ASSIGN_SCOPE_VARS_ED25519 => {
+            |_vm, exec_scopes, _hint_data| ed25519_is_zero_assign_scope_vars(exec_scopes)
+        }
+        hint_code::DIV_MOD_N_PACKED_DIVMOD_V1 => |vm, exec_scopes, hint_data| {
+            div_mod_n_packed_divmod(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::GET_FELT_BIT_LENGTH => |vm, _exec_scopes, hint_data| {
+            {
                 get_felt_bitlenght(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::BIGINT_PACK_DIV_MOD => bigint_pack_div_mod_hint(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-            ),
-            hint_code::BIGINT_SAFE_DIV => {
+        },
+        hint_code::BIGINT_PACK_DIV_MOD => |vm, exec_scopes, hint_data| {
+            bigint_pack_div_mod_hint(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::BIGINT_SAFE_DIV => |vm, exec_scopes, hint_data| {
+            {
                 bigint_safe_div_hint(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::DIV_MOD_N_PACKED_DIVMOD_EXTERNAL_N => div_mod_n_packed_external_n(
+        },
+        hint_code::DIV_MOD_N_PACKED_DIVMOD_EXTERNAL_N => |vm, exec_scopes, hint_data| {
+            div_mod_n_packed_external_n(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
-            ),
-            hint_code::DIV_MOD_N_SAFE_DIV => div_mod_n_safe_div(exec_scopes, "a", "b", 0),
-            hint_code::DIV_MOD_N_SAFE_DIV_PLUS_ONE => div_mod_n_safe_div(exec_scopes, "a", "b", 1),
-            hint_code::GET_POINT_FROM_X => get_point_from_x(
+            )
+        },
+        hint_code::DIV_MOD_N_SAFE_DIV => {
+            |_vm, exec_scopes, _hint_data| div_mod_n_safe_div(exec_scopes, "a", "b", 0)
+        }
+        hint_code::DIV_MOD_N_SAFE_DIV_PLUS_ONE => {
+            |_vm, exec_scopes, _hint_data| div_mod_n_safe_div(exec_scopes, "a", "b", 1)
+        }
+        hint_code::GET_POINT_FROM_X => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            get_point_from_x(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 constants,
-            ),
-            hint_code::EC_NEGATE => ec_negate_import_secp_p(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-            ),
-            hint_code::EC_NEGATE_EMBEDDED_SECP => ec_negate_embedded_secp_p(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-            ),
-            hint_code::EC_DOUBLE_SLOPE_V1 => compute_doubling_slope(
+            )
+        },
+        hint_code::EC_NEGATE => |vm, exec_scopes, hint_data| {
+            ec_negate_import_secp_p(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::EC_NEGATE_EMBEDDED_SECP => |vm, exec_scopes, hint_data| {
+            ec_negate_embedded_secp_p(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::EC_DOUBLE_SLOPE_V1 => |vm, exec_scopes, hint_data| {
+            compute_doubling_slope(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
@@ -532,8 +688,10 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                 &CAIRO_PRIME,
                 &SECP_P,
                 &ALPHA,
-            ),
-            hint_code::EC_DOUBLE_SLOPE_V2 => compute_doubling_slope(
+            )
+        },
+        hint_code::EC_DOUBLE_SLOPE_V2 => |vm, exec_scopes, hint_data| {
+            compute_doubling_slope(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
@@ -542,8 +700,10 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                 &CAIRO_PRIME,
                 &SECP_P_V2,
                 &ALPHA_V2,
-            ),
-            hint_code::EC_DOUBLE_SLOPE_V3 => compute_doubling_slope(
+            )
+        },
+        hint_code::EC_DOUBLE_SLOPE_V3 => |vm, exec_scopes, hint_data| {
+            compute_doubling_slope(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
@@ -552,8 +712,10 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                 &CAIRO_PRIME,
                 &SECP_P,
                 &ALPHA,
-            ),
-            hint_code::EC_DOUBLE_SLOPE_V4 => compute_doubling_slope(
+            )
+        },
+        hint_code::EC_DOUBLE_SLOPE_V4 => |vm, exec_scopes, hint_data| {
+            compute_doubling_slope(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
@@ -562,8 +724,10 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                 SECP256R1_P.magnitude(),
                 &SECP256R1_P,
                 &SECP256R1_ALPHA,
-            ),
-            hint_code::EC_DOUBLE_SLOPE_V5 => compute_doubling_slope(
+            )
+        },
+        hint_code::EC_DOUBLE_SLOPE_V5 => |vm, exec_scopes, hint_data| {
+            compute_doubling_slope(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
@@ -572,14 +736,18 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                 &CAIRO_PRIME,
                 &SECP256R1_P,
                 &SECP256R1_ALPHA,
-            ),
-            hint_code::EC_DOUBLE_SLOPE_EXTERNAL_CONSTS => compute_doubling_slope_external_consts(
+            )
+        },
+        hint_code::EC_DOUBLE_SLOPE_EXTERNAL_CONSTS => |vm, exec_scopes, hint_data| {
+            compute_doubling_slope_external_consts(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
-            ),
-            hint_code::COMPUTE_SLOPE_V1 => compute_slope_and_assing_secp_p(
+            )
+        },
+        hint_code::COMPUTE_SLOPE_V1 => |vm, exec_scopes, hint_data| {
+            compute_slope_and_assing_secp_p(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
@@ -587,11 +755,15 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                 "point0",
                 "point1",
                 &SECP_P,
-            ),
-            hint_code::SQUARE_SLOPE_X_MOD_P => {
+            )
+        },
+        hint_code::SQUARE_SLOPE_X_MOD_P => |vm, exec_scopes, hint_data| {
+            {
                 square_slope_minus_xs(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::COMPUTE_SLOPE_V2 => compute_slope_and_assing_secp_p(
+        },
+        hint_code::COMPUTE_SLOPE_V2 => |vm, exec_scopes, hint_data| {
+            compute_slope_and_assing_secp_p(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
@@ -599,8 +771,10 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                 "point0",
                 "point1",
                 &SECP_P_V2,
-            ),
-            hint_code::COMPUTE_SLOPE_SECP256R1_V1 => compute_slope(
+            )
+        },
+        hint_code::COMPUTE_SLOPE_SECP256R1_V1 => |vm, exec_scopes, hint_data| {
+            compute_slope(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
@@ -608,8 +782,10 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                 "point0",
                 "point1",
                 "SECP_P",
-            ),
-            hint_code::COMPUTE_SLOPE_SECP256R1_V2 => compute_slope(
+            )
+        },
+        hint_code::COMPUTE_SLOPE_SECP256R1_V2 => |vm, exec_scopes, hint_data| {
+            compute_slope(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
@@ -617,9 +793,13 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                 "point0",
                 "point1",
                 "SECP256R1_P",
-            ),
-            hint_code::IMPORT_SECP256R1_P => import_secp256r1_p(exec_scopes),
-            hint_code::COMPUTE_SLOPE_WHITELIST => compute_slope_and_assing_secp_p(
+            )
+        },
+        hint_code::IMPORT_SECP256R1_P => {
+            |_vm, exec_scopes, _hint_data| import_secp256r1_p(exec_scopes)
+        }
+        hint_code::COMPUTE_SLOPE_WHITELIST => |vm, exec_scopes, hint_data| {
+            compute_slope_and_assing_secp_p(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
@@ -627,70 +807,95 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                 "pt0",
                 "pt1",
                 &SECP_P,
-            ),
-            hint_code::EC_DOUBLE_ASSIGN_NEW_X_V1 => ec_double_assign_new_x(
+            )
+        },
+        hint_code::EC_DOUBLE_ASSIGN_NEW_X_V1 => |vm, exec_scopes, hint_data| {
+            ec_double_assign_new_x(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 &SECP_P,
                 "point",
-            ),
-            hint_code::EC_DOUBLE_ASSIGN_NEW_X_V2 => ec_double_assign_new_x_v2(
+            )
+        },
+        hint_code::EC_DOUBLE_ASSIGN_NEW_X_V2 => |vm, exec_scopes, hint_data| {
+            ec_double_assign_new_x_v2(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 "point",
-            ),
-            hint_code::EC_DOUBLE_ASSIGN_NEW_X_V3 => ec_double_assign_new_x(
+            )
+        },
+        hint_code::EC_DOUBLE_ASSIGN_NEW_X_V3 => |vm, exec_scopes, hint_data| {
+            ec_double_assign_new_x(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 &SECP_P_V2,
                 "point",
-            ),
-            hint_code::EC_DOUBLE_ASSIGN_NEW_X_V4 => ec_double_assign_new_x(
+            )
+        },
+        hint_code::EC_DOUBLE_ASSIGN_NEW_X_V4 => |vm, exec_scopes, hint_data| {
+            ec_double_assign_new_x(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 &SECP_P,
                 "pt",
-            ),
-            hint_code::EC_DOUBLE_ASSIGN_NEW_Y => ec_double_assign_new_y(exec_scopes),
-            hint_code::KECCAK_WRITE_ARGS => {
+            )
+        },
+        hint_code::EC_DOUBLE_ASSIGN_NEW_Y => {
+            |_vm, exec_scopes, _hint_data| ec_double_assign_new_y(exec_scopes)
+        }
+        hint_code::KECCAK_WRITE_ARGS => |vm, _exec_scopes, hint_data| {
+            {
                 keccak_write_args(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::COMPARE_BYTES_IN_WORD_NONDET => compare_bytes_in_word_nondet(
+        },
+        hint_code::COMPARE_BYTES_IN_WORD_NONDET => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            compare_bytes_in_word_nondet(vm, &hint_data.ids_data, &hint_data.ap_tracking, constants)
+        },
+        hint_code::SHA256_MAIN_CONSTANT_INPUT_LENGTH => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            sha256_main_constant_input_length(
                 vm,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 constants,
-            ),
-            hint_code::SHA256_MAIN_CONSTANT_INPUT_LENGTH => sha256_main_constant_input_length(
+            )
+        },
+        hint_code::SHA256_MAIN_ARBITRARY_INPUT_LENGTH => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            sha256_main_arbitrary_input_length(
                 vm,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 constants,
-            ),
-            hint_code::SHA256_MAIN_ARBITRARY_INPUT_LENGTH => sha256_main_arbitrary_input_length(
-                vm,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-                constants,
-            ),
-            hint_code::SHA256_INPUT => {
+            )
+        },
+        hint_code::SHA256_INPUT => |vm, _exec_scopes, hint_data| {
+            {
                 sha256_input(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::SHA256_FINALIZE => {
+        },
+        hint_code::SHA256_FINALIZE => |vm, _exec_scopes, hint_data| {
+            {
                 sha256_finalize(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::CAIRO_KECCAK_INPUT_IS_FULL_WORD => {
+        },
+        hint_code::CAIRO_KECCAK_INPUT_IS_FULL_WORD => |vm, _exec_scopes, hint_data| {
+            {
                 cairo_keccak_is_full_word(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::COMPARE_KECCAK_FULL_RATE_IN_BYTES_NONDET => {
+        },
+        hint_code::COMPARE_KECCAK_FULL_RATE_IN_BYTES_NONDET => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            {
                 compare_keccak_full_rate_in_bytes_nondet(
                     vm,
                     &hint_data.ids_data,
@@ -698,19 +903,35 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                     constants,
                 )
             }
-            hint_code::BLOCK_PERMUTATION | hint_code::BLOCK_PERMUTATION_WHITELIST_V1 => {
-                block_permutation_v1(vm, &hint_data.ids_data, &hint_data.ap_tracking, constants)
+        },
+        hint_code::BLOCK_PERMUTATION | hint_code::BLOCK_PERMUTATION_WHITELIST_V1 => {
+            |vm, _exec_scopes, hint_data| {
+                let constants = hint_data.constants.as_ref();
+                {
+                    block_permutation_v1(vm, &hint_data.ids_data, &hint_data.ap_tracking, constants)
+                }
             }
-            hint_code::BLOCK_PERMUTATION_WHITELIST_V2 => {
+        }
+        hint_code::BLOCK_PERMUTATION_WHITELIST_V2 => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            {
                 block_permutation_v2(vm, &hint_data.ids_data, &hint_data.ap_tracking, constants)
             }
-            hint_code::CAIRO_KECCAK_FINALIZE_V1 => {
+        },
+        hint_code::CAIRO_KECCAK_FINALIZE_V1 => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            {
                 cairo_keccak_finalize_v1(vm, &hint_data.ids_data, &hint_data.ap_tracking, constants)
             }
-            hint_code::CAIRO_KECCAK_FINALIZE_V2 => {
+        },
+        hint_code::CAIRO_KECCAK_FINALIZE_V2 => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            {
                 cairo_keccak_finalize_v2(vm, &hint_data.ids_data, &hint_data.ap_tracking, constants)
             }
-            hint_code::FAST_EC_ADD_ASSIGN_NEW_X => fast_ec_add_assign_new_x(
+        },
+        hint_code::FAST_EC_ADD_ASSIGN_NEW_X => |vm, exec_scopes, hint_data| {
+            fast_ec_add_assign_new_x(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
@@ -718,8 +939,10 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                 &SECP_P,
                 "point0",
                 "point1",
-            ),
-            hint_code::FAST_EC_ADD_ASSIGN_NEW_X_V2 => fast_ec_add_assign_new_x(
+            )
+        },
+        hint_code::FAST_EC_ADD_ASSIGN_NEW_X_V2 => |vm, exec_scopes, hint_data| {
+            fast_ec_add_assign_new_x(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
@@ -727,8 +950,10 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                 &SECP_P_V2,
                 "point0",
                 "point1",
-            ),
-            hint_code::FAST_EC_ADD_ASSIGN_NEW_X_V3 => fast_ec_add_assign_new_x(
+            )
+        },
+        hint_code::FAST_EC_ADD_ASSIGN_NEW_X_V3 => |vm, exec_scopes, hint_data| {
+            fast_ec_add_assign_new_x(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
@@ -736,148 +961,258 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                 &SECP_P,
                 "pt0",
                 "pt1",
-            ),
-            hint_code::FAST_EC_ADD_ASSIGN_NEW_Y => fast_ec_add_assign_new_y(exec_scopes),
-            hint_code::EC_MUL_INNER => {
+            )
+        },
+        hint_code::FAST_EC_ADD_ASSIGN_NEW_Y => {
+            |_vm, exec_scopes, _hint_data| fast_ec_add_assign_new_y(exec_scopes)
+        }
+        hint_code::EC_MUL_INNER => |vm, _exec_scopes, hint_data| {
+            {
                 ec_mul_inner(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::RELOCATE_SEGMENT => {
+        },
+        hint_code::RELOCATE_SEGMENT => |vm, _exec_scopes, hint_data| {
+            {
                 relocate_segment(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::TEMPORARY_ARRAY => {
+        },
+        hint_code::TEMPORARY_ARRAY => |vm, _exec_scopes, hint_data| {
+            {
                 temporary_array(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::VERIFY_ECDSA_SIGNATURE => {
+        },
+        hint_code::VERIFY_ECDSA_SIGNATURE => |vm, _exec_scopes, hint_data| {
+            {
                 verify_ecdsa_signature(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::SPLIT_OUTPUT_0 => {
+        },
+        hint_code::SPLIT_OUTPUT_0 => |vm, _exec_scopes, hint_data| {
+            {
                 split_output(vm, &hint_data.ids_data, &hint_data.ap_tracking, 0)
             }
-            hint_code::SPLIT_OUTPUT_1 => {
+        },
+        hint_code::SPLIT_OUTPUT_1 => |vm, _exec_scopes, hint_data| {
+            {
                 split_output(vm, &hint_data.ids_data, &hint_data.ap_tracking, 1)
             }
-            hint_code::SPLIT_INPUT_3 => {
+        },
+        hint_code::SPLIT_INPUT_3 => |vm, _exec_scopes, hint_data| {
+            {
                 split_input(vm, &hint_data.ids_data, &hint_data.ap_tracking, 3, 1)
             }
-            hint_code::SPLIT_INPUT_6 => {
+        },
+        hint_code::SPLIT_INPUT_6 => |vm, _exec_scopes, hint_data| {
+            {
                 split_input(vm, &hint_data.ids_data, &hint_data.ap_tracking, 6, 2)
             }
-            hint_code::SPLIT_INPUT_9 => {
+        },
+        hint_code::SPLIT_INPUT_9 => |vm, _exec_scopes, hint_data| {
+            {
                 split_input(vm, &hint_data.ids_data, &hint_data.ap_tracking, 9, 3)
             }
-            hint_code::SPLIT_INPUT_12 => {
+        },
+        hint_code::SPLIT_INPUT_12 => |vm, _exec_scopes, hint_data| {
+            {
                 split_input(vm, &hint_data.ids_data, &hint_data.ap_tracking, 12, 4)
             }
-            hint_code::SPLIT_INPUT_15 => {
+        },
+        hint_code::SPLIT_INPUT_15 => |vm, _exec_scopes, hint_data| {
+            {
                 split_input(vm, &hint_data.ids_data, &hint_data.ap_tracking, 15, 5)
             }
-            hint_code::SPLIT_N_BYTES => {
+        },
+        hint_code::SPLIT_N_BYTES => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            {
                 split_n_bytes(vm, &hint_data.ids_data, &hint_data.ap_tracking, constants)
             }
-            hint_code::SPLIT_OUTPUT_MID_LOW_HIGH => {
+        },
+        hint_code::SPLIT_OUTPUT_MID_LOW_HIGH => |vm, _exec_scopes, hint_data| {
+            {
                 split_output_mid_low_high(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::NONDET_N_GREATER_THAN_10 => {
+        },
+        hint_code::NONDET_N_GREATER_THAN_10 => |vm, _exec_scopes, hint_data| {
+            {
                 n_greater_than_10(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::NONDET_N_GREATER_THAN_2 => {
+        },
+        hint_code::NONDET_N_GREATER_THAN_2 => |vm, _exec_scopes, hint_data| {
+            {
                 n_greater_than_2(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::NONDET_ELEMENTS_OVER_TEN => {
+        },
+        hint_code::NONDET_ELEMENTS_OVER_TEN => |vm, _exec_scopes, hint_data| {
+            {
                 elements_over_x(vm, &hint_data.ids_data, &hint_data.ap_tracking, 10)
             }
-            hint_code::NONDET_ELEMENTS_OVER_TWO => {
+        },
+        hint_code::NONDET_ELEMENTS_OVER_TWO => |vm, _exec_scopes, hint_data| {
+            {
                 elements_over_x(vm, &hint_data.ids_data, &hint_data.ap_tracking, 2)
             }
-            hint_code::RANDOM_EC_POINT => {
+        },
+        hint_code::RANDOM_EC_POINT => |vm, _exec_scopes, hint_data| {
+            {
                 random_ec_point_hint(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::CHAINED_EC_OP_RANDOM_EC_POINT => {
+        },
+        hint_code::CHAINED_EC_OP_RANDOM_EC_POINT => |vm, _exec_scopes, hint_data| {
+            {
                 chained_ec_op_random_ec_point_hint(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::RECOVER_Y => recover_y_hint(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::PACK_MODN_DIV_MODN => {
+        },
+        hint_code::RECOVER_Y => |vm, _exec_scopes, hint_data| {
+            recover_y_hint(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::PACK_MODN_DIV_MODN => |vm, exec_scopes, hint_data| {
+            {
                 pack_modn_div_modn(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::XS_SAFE_DIV => div_mod_n_safe_div(exec_scopes, "x", "s", 0),
-            hint_code::UINT384_UNSIGNED_DIV_REM => {
+        },
+        hint_code::XS_SAFE_DIV => {
+            |_vm, exec_scopes, _hint_data| div_mod_n_safe_div(exec_scopes, "x", "s", 0)
+        }
+        hint_code::UINT384_UNSIGNED_DIV_REM => |vm, _exec_scopes, hint_data| {
+            {
                 uint384_unsigned_div_rem(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::UINT384_SPLIT_128 => {
+        },
+        hint_code::UINT384_SPLIT_128 => |vm, _exec_scopes, hint_data| {
+            {
                 uint384_split_128(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::ADD_NO_UINT384_CHECK => {
+        },
+        hint_code::ADD_NO_UINT384_CHECK => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            {
                 add_no_uint384_check(vm, &hint_data.ids_data, &hint_data.ap_tracking, constants)
             }
-            hint_code::UINT384_SQRT => {
+        },
+        hint_code::UINT384_SQRT => |vm, _exec_scopes, hint_data| {
+            {
                 uint384_sqrt(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::UNSIGNED_DIV_REM_UINT768_BY_UINT384
-            | hint_code::UNSIGNED_DIV_REM_UINT768_BY_UINT384_STRIPPED => {
-                unsigned_div_rem_uint768_by_uint384(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::UNSIGNED_DIV_REM_UINT768_BY_UINT384
+        | hint_code::UNSIGNED_DIV_REM_UINT768_BY_UINT384_STRIPPED => {
+            |vm, _exec_scopes, hint_data| {
+                {
+                    unsigned_div_rem_uint768_by_uint384(
+                        vm,
+                        &hint_data.ids_data,
+                        &hint_data.ap_tracking,
+                    )
+                }
             }
-            hint_code::SUB_REDUCED_A_AND_REDUCED_B => {
+        }
+        hint_code::SUB_REDUCED_A_AND_REDUCED_B => |vm, _exec_scopes, hint_data| {
+            {
                 sub_reduced_a_and_reduced_b(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::UINT384_GET_SQUARE_ROOT => {
+        },
+        hint_code::UINT384_GET_SQUARE_ROOT => |vm, _exec_scopes, hint_data| {
+            {
                 u384_get_square_root(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::UINT256_GET_SQUARE_ROOT => {
+        },
+        hint_code::UINT256_GET_SQUARE_ROOT => |vm, _exec_scopes, hint_data| {
+            {
                 u256_get_square_root(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::UINT384_SIGNED_NN => {
+        },
+        hint_code::UINT384_SIGNED_NN => |vm, _exec_scopes, hint_data| {
+            {
                 uint384_signed_nn(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::UINT384_DIV => uint384_div(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::UINT256_MUL_DIV_MOD => {
+        },
+        hint_code::UINT384_DIV => |vm, _exec_scopes, hint_data| {
+            uint384_div(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::UINT256_MUL_DIV_MOD => |vm, _exec_scopes, hint_data| {
+            {
                 uint256_mul_div_mod(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::IMPORT_SECP256R1_ALPHA => import_secp256r1_alpha(exec_scopes),
-            hint_code::IMPORT_SECP256R1_N => import_secp256r1_n(exec_scopes),
-            hint_code::UINT512_UNSIGNED_DIV_REM => {
+        },
+        hint_code::IMPORT_SECP256R1_ALPHA => {
+            |_vm, exec_scopes, _hint_data| import_secp256r1_alpha(exec_scopes)
+        }
+        hint_code::IMPORT_SECP256R1_N => {
+            |_vm, exec_scopes, _hint_data| import_secp256r1_n(exec_scopes)
+        }
+        hint_code::UINT512_UNSIGNED_DIV_REM => |vm, _exec_scopes, hint_data| {
+            {
                 uint512_unsigned_div_rem(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::HI_MAX_BITLEN => {
+        },
+        hint_code::HI_MAX_BITLEN => |vm, _exec_scopes, hint_data| {
+            {
                 hi_max_bitlen(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::QUAD_BIT => quad_bit(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::INV_MOD_P_UINT256 => {
+        },
+        hint_code::QUAD_BIT => {
+            |vm, _exec_scopes, hint_data| quad_bit(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        }
+        hint_code::INV_MOD_P_UINT256 => |vm, _exec_scopes, hint_data| {
+            {
                 inv_mod_p_uint256(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::INV_MOD_P_UINT512 => {
+        },
+        hint_code::INV_MOD_P_UINT512 => |vm, _exec_scopes, hint_data| {
+            {
                 inv_mod_p_uint512(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::DI_BIT => di_bit(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::EXAMPLE_BLAKE2S_COMPRESS => {
+        },
+        hint_code::DI_BIT => {
+            |vm, _exec_scopes, hint_data| di_bit(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        }
+        hint_code::EXAMPLE_BLAKE2S_COMPRESS => |vm, _exec_scopes, hint_data| {
+            {
                 example_blake2s_compress(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::EC_RECOVER_DIV_MOD_N_PACKED => ec_recover_divmod_n_packed(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-            ),
-            hint_code::EC_RECOVER_SUB_A_B => {
+        },
+        hint_code::EC_RECOVER_DIV_MOD_N_PACKED => |vm, exec_scopes, hint_data| {
+            ec_recover_divmod_n_packed(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        hint_code::EC_RECOVER_SUB_A_B => |vm, exec_scopes, hint_data| {
+            {
                 ec_recover_sub_a_b(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::A_B_BITAND_1 => {
+        },
+        hint_code::A_B_BITAND_1 => |vm, _exec_scopes, hint_data| {
+            {
                 a_b_bitand_1(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::ASSERT_LE_FELT_V_0_6 => {
+        },
+        hint_code::ASSERT_LE_FELT_V_0_6 => |vm, _exec_scopes, hint_data| {
+            {
                 assert_le_felt_v_0_6(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::ASSERT_LE_FELT_V_0_8 => {
+        },
+        hint_code::ASSERT_LE_FELT_V_0_8 => |vm, _exec_scopes, hint_data| {
+            {
                 assert_le_felt_v_0_8(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::EC_RECOVER_PRODUCT_MOD => {
+        },
+        hint_code::EC_RECOVER_PRODUCT_MOD => |vm, exec_scopes, hint_data| {
+            {
                 ec_recover_product_mod(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::EC_RECOVER_PRODUCT_DIV_M => ec_recover_product_div_m(exec_scopes),
-            hint_code::SPLIT_XX => split_xx(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            hint_code::RUN_P_CIRCUIT => {
+        },
+        hint_code::EC_RECOVER_PRODUCT_DIV_M => {
+            |_vm, exec_scopes, _hint_data| ec_recover_product_div_m(exec_scopes)
+        }
+        hint_code::SPLIT_XX => {
+            |vm, _exec_scopes, hint_data| split_xx(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        }
+        hint_code::RUN_P_CIRCUIT => |vm, _exec_scopes, hint_data| {
+            {
                 run_p_mod_circuit(vm, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::RUN_P_CIRCUIT_WITH_LARGE_BATCH_SIZE => {
+        },
+        hint_code::RUN_P_CIRCUIT_WITH_LARGE_BATCH_SIZE => |vm, _exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            {
                 run_p_mod_circuit_with_large_batch_size(
                     vm,
                     &hint_data.ids_data,
@@ -885,144 +1220,197 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                     constants,
                 )
             }
-            #[cfg(feature = "test_utils")]
-            hint_code::SKIP_NEXT_INSTRUCTION => skip_next_instruction(vm),
-            #[cfg(feature = "test_utils")]
-            hint_code::PRINT_FELT => print_felt(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            #[cfg(feature = "test_utils")]
-            hint_code::PRINT_ARR => print_array(vm, &hint_data.ids_data, &hint_data.ap_tracking),
-            #[cfg(feature = "test_utils")]
-            hint_code::PRINT_DICT => {
+        },
+        #[cfg(feature = "test_utils")]
+        hint_code::SKIP_NEXT_INSTRUCTION => {
+            |vm, _exec_scopes, _hint_data| skip_next_instruction(vm)
+        }
+        #[cfg(feature = "test_utils")]
+        hint_code::PRINT_FELT => |vm, _exec_scopes, hint_data| {
+            print_felt(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        #[cfg(feature = "test_utils")]
+        hint_code::PRINT_ARR => |vm, _exec_scopes, hint_data| {
+            print_array(vm, &hint_data.ids_data, &hint_data.ap_tracking)
+        },
+        #[cfg(feature = "test_utils")]
+        hint_code::PRINT_DICT => |vm, exec_scopes, hint_data| {
+            {
                 print_dict(vm, exec_scopes, &hint_data.ids_data, &hint_data.ap_tracking)
             }
-            hint_code::EXCESS_BALANCE => excess_balance_hint(
+        },
+        hint_code::EXCESS_BALANCE => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            excess_balance_hint(
                 vm,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 constants,
                 exec_scopes,
-            ),
-            #[cfg(feature = "cairo-0-secp-hints")]
-            cairo0_hints::COMPUTE_Q_MOD_PRIME => cairo0_hints::compute_q_mod_prime(
+            )
+        },
+        #[cfg(feature = "cairo-0-secp-hints")]
+        cairo0_hints::COMPUTE_Q_MOD_PRIME => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            cairo0_hints::compute_q_mod_prime(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 constants,
-            ),
-            #[cfg(feature = "cairo-0-secp-hints")]
-            cairo0_hints::COMPUTE_IDS_HIGH_LOW => cairo0_hints::compute_ids_high_low(
+            )
+        },
+        #[cfg(feature = "cairo-0-secp-hints")]
+        cairo0_hints::COMPUTE_IDS_HIGH_LOW => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            cairo0_hints::compute_ids_high_low(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 constants,
-            ),
-            #[cfg(feature = "cairo-0-secp-hints")]
-            cairo0_hints::SECP_DOUBLE_ASSIGN_NEW_X => cairo0_hints::secp_double_assign_new_x(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-                constants,
-                SECP256R1_P.magnitude(),
-            ),
-            #[cfg(feature = "cairo-0-secp-hints")]
-            cairo0_hints::SECP_DOUBLE_ASSIGN_NEW_X_V2 => cairo0_hints::secp_double_assign_new_x(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-                constants,
-                &CAIRO_PRIME,
-            ),
-            #[cfg(feature = "cairo-0-secp-hints")]
-            cairo0_hints::FAST_SECP_ADD_ASSIGN_NEW_Y => cairo0_hints::fast_secp_add_assign_new_y(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-                constants,
-            ),
-            #[cfg(feature = "cairo-0-secp-hints")]
-            cairo0_hints::COMPUTE_VALUE_DIV_MOD => cairo0_hints::compute_value_div_mod(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-                constants,
-            ),
-            #[cfg(feature = "cairo-0-secp-hints")]
-            cairo0_hints::GENERATE_NIBBLES => cairo0_hints::generate_nibbles(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-                constants,
-            ),
-
-            #[cfg(feature = "cairo-0-secp-hints")]
-            cairo0_hints::WRITE_NIBBLES_TO_MEM => cairo0_hints::write_nibbles_to_mem(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-                constants,
-            ),
-            #[cfg(feature = "cairo-0-secp-hints")]
-            cairo0_hints::IS_ON_CURVE_2 => cairo0_hints::is_on_curve_2(
-                vm,
-                exec_scopes,
-                &hint_data.ids_data,
-                &hint_data.ap_tracking,
-                constants,
-            ),
-            #[cfg(feature = "cairo-0-secp-hints")]
-            cairo0_hints::SECP_R1_GET_POINT_FROM_X => cairo0_hints::r1_get_point_from_x(
+            )
+        },
+        #[cfg(feature = "cairo-0-secp-hints")]
+        cairo0_hints::SECP_DOUBLE_ASSIGN_NEW_X => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            cairo0_hints::secp_double_assign_new_x(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 constants,
                 SECP256R1_P.magnitude(),
-            ),
-
-            #[cfg(feature = "cairo-0-secp-hints")]
-            cairo0_hints::SECP_R1_GET_POINT_FROM_X_V2 => cairo0_hints::r1_get_point_from_x(
+            )
+        },
+        #[cfg(feature = "cairo-0-secp-hints")]
+        cairo0_hints::SECP_DOUBLE_ASSIGN_NEW_X_V2 => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            cairo0_hints::secp_double_assign_new_x(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 constants,
                 &CAIRO_PRIME,
-            ),
-
-            #[cfg(feature = "cairo-0-secp-hints")]
-            cairo0_hints::SECP_REDUCE => cairo0_hints::reduce_value(
+            )
+        },
+        #[cfg(feature = "cairo-0-secp-hints")]
+        cairo0_hints::FAST_SECP_ADD_ASSIGN_NEW_Y => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            cairo0_hints::fast_secp_add_assign_new_y(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 constants,
-            ),
-            #[cfg(feature = "cairo-0-secp-hints")]
-            cairo0_hints::SECP_REDUCE_X => cairo0_hints::reduce_x(
+            )
+        },
+        #[cfg(feature = "cairo-0-secp-hints")]
+        cairo0_hints::COMPUTE_VALUE_DIV_MOD => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            cairo0_hints::compute_value_div_mod(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 constants,
-            ),
-            #[cfg(feature = "cairo-0-data-availability-hints")]
-            super::kzg_da::WRITE_DIVMOD_SEGMENT => super::kzg_da::write_div_mod_segment(
+            )
+        },
+        #[cfg(feature = "cairo-0-secp-hints")]
+        cairo0_hints::GENERATE_NIBBLES => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            cairo0_hints::generate_nibbles(
                 vm,
                 exec_scopes,
                 &hint_data.ids_data,
                 &hint_data.ap_tracking,
                 constants,
-            ),
-            #[cfg(feature = "test_utils")]
-            super::simulated_builtins::GET_SIMULATED_BUILTIN_BASE => {
+            )
+        },
+        #[cfg(feature = "cairo-0-secp-hints")]
+        cairo0_hints::WRITE_NIBBLES_TO_MEM => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            cairo0_hints::write_nibbles_to_mem(
+                vm,
+                exec_scopes,
+                &hint_data.ids_data,
+                &hint_data.ap_tracking,
+                constants,
+            )
+        },
+        #[cfg(feature = "cairo-0-secp-hints")]
+        cairo0_hints::IS_ON_CURVE_2 => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            cairo0_hints::is_on_curve_2(
+                vm,
+                exec_scopes,
+                &hint_data.ids_data,
+                &hint_data.ap_tracking,
+                constants,
+            )
+        },
+        #[cfg(feature = "cairo-0-secp-hints")]
+        cairo0_hints::SECP_R1_GET_POINT_FROM_X => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            cairo0_hints::r1_get_point_from_x(
+                vm,
+                exec_scopes,
+                &hint_data.ids_data,
+                &hint_data.ap_tracking,
+                constants,
+                SECP256R1_P.magnitude(),
+            )
+        },
+        #[cfg(feature = "cairo-0-secp-hints")]
+        cairo0_hints::SECP_R1_GET_POINT_FROM_X_V2 => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            cairo0_hints::r1_get_point_from_x(
+                vm,
+                exec_scopes,
+                &hint_data.ids_data,
+                &hint_data.ap_tracking,
+                constants,
+                &CAIRO_PRIME,
+            )
+        },
+        #[cfg(feature = "cairo-0-secp-hints")]
+        cairo0_hints::SECP_REDUCE => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            cairo0_hints::reduce_value(
+                vm,
+                exec_scopes,
+                &hint_data.ids_data,
+                &hint_data.ap_tracking,
+                constants,
+            )
+        },
+        #[cfg(feature = "cairo-0-secp-hints")]
+        cairo0_hints::SECP_REDUCE_X => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            cairo0_hints::reduce_x(
+                vm,
+                exec_scopes,
+                &hint_data.ids_data,
+                &hint_data.ap_tracking,
+                constants,
+            )
+        },
+        #[cfg(feature = "cairo-0-data-availability-hints")]
+        super::kzg_da::WRITE_DIVMOD_SEGMENT => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            super::kzg_da::write_div_mod_segment(
+                vm,
+                exec_scopes,
+                &hint_data.ids_data,
+                &hint_data.ap_tracking,
+                constants,
+            )
+        },
+        #[cfg(feature = "test_utils")]
+        super::simulated_builtins::GET_SIMULATED_BUILTIN_BASE => |vm, exec_scopes, hint_data| {
+            let constants = hint_data.constants.as_ref();
+            {
                 super::simulated_builtins::get_simulated_builtin_base(
                     vm,
                     exec_scopes,
@@ -1031,9 +1419,81 @@ impl HintProcessorLogic for BuiltinHintProcessor {
                     constants,
                 )
             }
+        },
+        _ => return None,
+    };
+    Some(hint_impl)
+}
 
-            code => Err(HintError::UnknownHint(code.to_string().into_boxed_str())),
+/// A hint compiled by the builtin hint processor: its data, plus its implementation resolved
+/// once at compile time, so that executions dispatch directly instead of re-matching the code
+/// string.
+struct CompiledHint {
+    data: HintProcessorData,
+    /// `None` for codes not known to the builtin hint processor (e.g. extra hints).
+    run: Option<HintImpl>,
+}
+
+impl HintProcessorLogic for BuiltinHintProcessor {
+    fn compile_hint(
+        &self,
+        hint_code: &str,
+        ap_tracking_data: &ApTracking,
+        reference_ids: &HashMap<String, usize>,
+        references: &[HintReference],
+        accessible_scopes: &[String],
+        constants: Arc<HashMap<String, Felt252>>,
+    ) -> Result<Box<dyn Any>, VirtualMachineError> {
+        Ok(any_box!(CompiledHint {
+            data: HintProcessorData {
+                code: hint_code.to_string(),
+                ap_tracking: ap_tracking_data.clone(),
+                ids_data: get_ids_data(reference_ids, references)?,
+                accessible_scopes: accessible_scopes.to_vec(),
+                constants,
+            },
+            // Resolving here (once per compiled hint) lets executions dispatch directly
+            // instead of matching the code string every time.
+            run: resolve_hint(hint_code),
+        }))
+    }
+
+    fn execute_hint(
+        &mut self,
+        vm: &mut VirtualMachine,
+        exec_scopes: &mut ExecutionScopes,
+        hint_data: &Box<dyn Any>,
+    ) -> Result<(), HintError> {
+        let (hint_data, run) = match hint_data.downcast_ref::<CompiledHint>() {
+            Some(compiled) => (&compiled.data, compiled.run),
+            None => (
+                hint_data
+                    .downcast_ref::<HintProcessorData>()
+                    .ok_or(HintError::WrongHintData)?,
+                None,
+            ),
+        };
+
+        // Hashing the full hint code on every execution is expensive; skip the lookup entirely
+        // in the common case where no extra hints were registered.
+        if !self.extra_hints.is_empty() {
+            if let Some(hint_func) = self.extra_hints.get(&hint_data.code) {
+                return hint_func.0(
+                    vm,
+                    exec_scopes,
+                    &hint_data.ids_data,
+                    &hint_data.ap_tracking,
+                    hint_data.constants.as_ref(),
+                );
+            }
         }
+        let run = match run {
+            Some(run) => run,
+            None => resolve_hint(&hint_data.code).ok_or_else(|| {
+                HintError::UnknownHint(hint_data.code.to_string().into_boxed_str())
+            })?,
+        };
+        run(vm, exec_scopes, hint_data)
     }
 }
 

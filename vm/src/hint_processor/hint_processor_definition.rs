@@ -126,7 +126,7 @@ impl<'program> RunHints<'program> {
 pub trait HintProcessor: HintProcessorLogic + ResourceTracker {}
 impl<T> HintProcessor for T where T: HintProcessorLogic + ResourceTracker {}
 
-fn get_ids_data(
+pub(crate) fn get_ids_data(
     reference_ids: &HashMap<String, usize>,
     references: &[HintReference],
 ) -> Result<HashMap<String, HintReference>, VirtualMachineError> {
