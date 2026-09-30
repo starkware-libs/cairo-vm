@@ -581,6 +581,7 @@ impl CairoRunner {
         for builtin_runner in self.vm.builtin_runners.iter_mut() {
             builtin_runner.initialize_segments(&mut self.vm.segments);
         }
+        self.vm.mark_builtin_runners_changed();
     }
 
     fn initialize_state(
@@ -5617,7 +5618,7 @@ mod tests {
         builtin_runner.initialize_segments(&mut cairo_runner.vm.segments);
         cairo_runner
             .vm
-            .simulated_builtin_runners
+            .get_simulated_builtin_runners_as_mut()
             .push(builtin_runner);
 
         let hint_processor: &mut dyn HintProcessor = &mut BuiltinHintProcessor::new_empty();
