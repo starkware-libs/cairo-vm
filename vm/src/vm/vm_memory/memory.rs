@@ -728,6 +728,31 @@ impl Memory {
         }
     }
 
+    /// Marks a batch of addresses as accessed, resolving each segment only once for runs of
+    /// consecutive addresses sharing a segment.
+    pub(crate) fn mark_as_accessed_batch<const N: usize>(&mut self, addrs: [Relocatable; N]) {
+        let mut i = 0;
+        while i < N {
+            let segment_index = addrs[i].segment_index;
+            let (data_index, _) = from_relocatable_to_indexes(addrs[i]);
+            let data = if segment_index < 0 {
+                &mut self.temp_data
+            } else {
+                &mut self.data
+            };
+            let mut segment = data.get_mut(data_index);
+            while i < N && addrs[i].segment_index == segment_index {
+                if let Some(cell) = segment
+                    .as_deref_mut()
+                    .and_then(|segment| segment.get_mut(addrs[i].offset))
+                {
+                    cell.mark_accessed();
+                }
+                i += 1;
+            }
+        }
+    }
+
     pub fn get_amount_of_accessed_addresses_for_segment(
         &self,
         segment_index: usize,
@@ -1856,6 +1881,23 @@ mod memory_tests {
         assert!(!memory.data[0][0].is_accessed());
         memory.mark_as_accessed(relocatable!(0, 0));
         assert!(memory.data[0][0].is_accessed());
+    }
+
+    #[test]
+    fn mark_address_as_accessed_batch() {
+        let mut memory = memory![((0, 0), 0), ((0, 1), 1), ((1, 0), 2), ((1, 1), 3)];
+        // Runs of same-segment addresses, an unknown cell and an unallocated segment.
+        memory.mark_as_accessed_batch([
+            relocatable!(1, 0),
+            relocatable!(1, 1),
+            relocatable!(0, 1),
+            relocatable!(0, 5),
+            relocatable!(7, 0),
+        ]);
+        assert!(!memory.data[0][0].is_accessed());
+        assert!(memory.data[0][1].is_accessed());
+        assert!(memory.data[1][0].is_accessed());
+        assert!(memory.data[1][1].is_accessed());
     }
 
     #[test]
