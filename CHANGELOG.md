@@ -11,6 +11,12 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 ---
 
 #### Upcoming Changes
+* refactor(BREAKING): remove the `extensive_hints` feature; hints added at runtime are now always supported, at no cost to runs that add none [#2401](https://github.com/starkware-libs/cairo-vm/pull/2401)
+  * The `extensive_hints` feature is removed from `cairo-vm` and `cairo1-hint-processor`
+  * `VirtualMachine::step`/`step_hint` take a `RunHints` (the compiled hint data, the program's hint ranges and the runtime-added ones)
+  * `add_relocation_rule` always takes a `MaybeRelocatable` destination
+  * `HintsCollection::get_hint_range_for_pc` is removed; `HintsCollection::hints_ranges` is now public
+
 * refactor(BREAKING): move the Cairo 1 hint processor into its own `cairo1-hint-processor` crate, so `cairo-vm` no longer depends on `cairo-lang-*` [#2390](https://github.com/starkware-libs/cairo-vm/pull/2390)
   * The `cairo-1-hints` feature is removed; depend on `cairo1-hint-processor` instead
   * `cairo_vm::hint_processor::cairo_1_hint_processor::*` moved to `cairo1_hint_processor::*`

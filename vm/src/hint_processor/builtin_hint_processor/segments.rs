@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 
-use crate::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
+use crate::hint_processor::builtin_hint_processor::hint_utils::{
+    get_maybe_relocatable_from_var_name, get_ptr_from_var_name,
+};
 use crate::hint_processor::{
     builtin_hint_processor::hint_utils::insert_value_from_var_name,
     hint_processor_definition::HintReference,
 };
 use crate::serde::deserialize_program::ApTracking;
+use crate::types::relocatable::MaybeRelocatable;
 use crate::vm::errors::hint_errors::HintError;
 use crate::vm::vm_core::VirtualMachine;
 
@@ -28,25 +31,9 @@ pub fn relocate_segment(
     let dest_ptr = if let Ok(infos) = get_ptr_from_var_name("infos", vm, ids_data, ap_tracking) {
         let infos_0_end = vm.get_relocatable((infos + 1)?)?;
 
-        #[cfg(not(feature = "extensive_hints"))]
-        {
-            (infos_0_end + 1u32)?
-        }
-
-        #[cfg(feature = "extensive_hints")]
-        {
-            crate::types::relocatable::MaybeRelocatable::RelocatableValue((infos_0_end + 1u32)?)
-        }
+        MaybeRelocatable::RelocatableValue((infos_0_end + 1u32)?)
     } else {
-        #[cfg(not(feature = "extensive_hints"))]
-        {
-            get_ptr_from_var_name("dest_ptr", vm, ids_data, ap_tracking)?
-        }
-
-        #[cfg(feature = "extensive_hints")]
-        {
-            crate::hint_processor::builtin_hint_processor::hint_utils::get_maybe_relocatable_from_var_name("dest_ptr", vm, ids_data, ap_tracking)?
-        }
+        get_maybe_relocatable_from_var_name("dest_ptr", vm, ids_data, ap_tracking)?
     };
     vm.add_relocation_rule(src_ptr, dest_ptr)
         .map_err(HintError::Memory)?;
