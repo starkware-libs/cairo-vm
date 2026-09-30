@@ -142,7 +142,8 @@ pub struct VirtualMachine {
     run_finished: bool,
     // This flag is a parallel to the one in `struct Cairo0RunConfig`.
     pub(crate) disable_trace_padding: bool,
-    instruction_cache: Vec<Option<Instruction>>,
+    /// Decoded-instruction caches, one per (non-temporary) segment code runs from.
+    instruction_cache: Vec<Vec<Option<Instruction>>>,
     #[cfg(feature = "test_utils")]
     pub(crate) hooks: Option<Box<dyn crate::vm::hooks::StepHooks>>,
     pub(crate) relocation_table: Option<Vec<usize>>,
@@ -612,40 +613,41 @@ impl VirtualMachine {
     }
 
     pub fn step_instruction(&mut self) -> Result<(), VirtualMachineError> {
-        if self.run_context.pc.segment_index == 0 {
-            // Run instructions from program segment, using instruction cache
-            let pc = self.run_context.pc.offset;
-
-            if self.segments.memory.data[0].len() <= pc {
-                return Err(MemoryError::UnknownMemoryCell(Box::new((0, pc).into())))?;
+        let pc = self.run_context.pc;
+        let instruction = match usize::try_from(pc.segment_index) {
+            // Run instructions from a regular segment, using the instruction cache.
+            Ok(segment_index) => {
+                let cached = self
+                    .instruction_cache
+                    .get(segment_index)
+                    .and_then(|segment_cache| segment_cache.get(pc.offset))
+                    .copied()
+                    .flatten();
+                match cached {
+                    Some(instruction) => instruction,
+                    None => {
+                        let instruction = self.decode_current_instruction()?;
+                        if self.instruction_cache.len() <= segment_index {
+                            self.instruction_cache.resize(segment_index + 1, Vec::new());
+                        }
+                        let segment_cache = &mut self.instruction_cache[segment_index];
+                        if segment_cache.len() <= pc.offset {
+                            segment_cache.resize(pc.offset + 1, None);
+                        }
+                        segment_cache[pc.offset] = Some(instruction);
+                        instruction
+                    }
+                }
             }
+            // Run instructions from temporary segments without an instruction cache.
+            Err(_) => self.decode_current_instruction()?,
+        };
 
-            let mut inst_cache = core::mem::take(&mut self.instruction_cache);
-            inst_cache.resize((pc + 1).max(inst_cache.len()), None);
-
-            let instruction = inst_cache.get_mut(pc).unwrap();
-            if instruction.is_none() {
-                *instruction = Some(self.decode_current_instruction()?);
-            }
-            let instruction = instruction.as_ref().unwrap();
-
-            if !self.skip_instruction_execution {
-                self.run_instruction(instruction)?;
-            } else {
-                self.run_context.pc += instruction.size();
-                self.skip_instruction_execution = false;
-            }
-            self.instruction_cache = inst_cache;
+        if !self.skip_instruction_execution {
+            self.run_instruction(&instruction)?;
         } else {
-            // Run instructions from programs loaded in other segments, without instruction cache
-            let instruction = self.decode_current_instruction()?;
-
-            if !self.skip_instruction_execution {
-                self.run_instruction(&instruction)?;
-            } else {
-                self.run_context.pc += instruction.size();
-                self.skip_instruction_execution = false;
-            }
+            self.run_context.pc += instruction.size();
+            self.skip_instruction_execution = false;
         }
         Ok(())
     }
@@ -1063,8 +1065,16 @@ impl VirtualMachine {
         ptr: Relocatable,
         data: &[MaybeRelocatable],
     ) -> Result<Relocatable, MemoryError> {
-        if ptr.segment_index == 0 {
-            self.instruction_cache.resize(data.len(), None);
+        // Pre-size the instruction cache of the loaded segment, as it likely holds a program.
+        if let Ok(segment_index) = usize::try_from(ptr.segment_index) {
+            if self.instruction_cache.len() <= segment_index {
+                self.instruction_cache.resize(segment_index + 1, Vec::new());
+            }
+            let segment_cache = &mut self.instruction_cache[segment_index];
+            let end = ptr.offset.saturating_add(data.len());
+            if segment_cache.len() < end {
+                segment_cache.resize(end, None);
+            }
         }
         self.segments.load_data(ptr, data)
     }
