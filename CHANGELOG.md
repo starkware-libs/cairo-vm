@@ -11,6 +11,8 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 ---
 
 #### Upcoming Changes
+* perf: replace the linear builtin-runner scan in operand deduction with a lazily-rebuilt segment lookup. BREAKING: `VirtualMachine::builtin_runners` and `simulated_builtin_runners` are no longer public fields — use `get_builtin_runners`/`get_builtin_runners_as_mut`/`get_simulated_builtin_runners`/`get_simulated_builtin_runners_as_mut`; `compute_operands` now takes `&mut self` [#2394](https://github.com/starkware-libs/cairo-vm/pull/2394)
+
 * feat(BREAKING): the VM rejects "generic" instructions, i.e. instructions not covered by a dedicated Stwo opcode component, with the new error `VirtualMachineError::GenericInstruction`
   * New enum `SupportedInstruction` and function `classify_instruction` in `vm::decoding::decoder`
   * The check runs when an instruction is decoded, so cached instructions are checked only once per pc
