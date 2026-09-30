@@ -11,6 +11,8 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 ---
 
 #### Upcoming Changes
+* perf: replace the linear builtin-runner scan in operand deduction with a lazily-rebuilt segment lookup. BREAKING: `VirtualMachine::builtin_runners` and `simulated_builtin_runners` are no longer public fields — use `get_builtin_runners`/`get_builtin_runners_as_mut`/`get_simulated_builtin_runners`/`get_simulated_builtin_runners_as_mut`; `compute_operands` now takes `&mut self` [#2394](https://github.com/starkware-libs/cairo-vm/pull/2394)
+
 * refactor(BREAKING): remove the `extensive_hints` feature; hints added at runtime are now always supported, at no cost to runs that add none [#2401](https://github.com/starkware-libs/cairo-vm/pull/2401)
   * The `extensive_hints` feature is removed from `cairo-vm` and `cairo1-hint-processor`
   * `VirtualMachine::step`/`step_hint` take a `RunHints` (the compiled hint data, the program's hint ranges and the runtime-added ones)

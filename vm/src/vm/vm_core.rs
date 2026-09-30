@@ -121,7 +121,10 @@ impl Default for VirtualMachineConfig {
 
 pub struct VirtualMachine {
     pub(crate) run_context: RunContext,
-    pub builtin_runners: Vec<BuiltinRunner>,
+    /// NOTE: any mutation that can change a runner's base or the set of runners must be
+    /// followed by a call to `mark_builtin_runners_changed`, so that the segment lookup is
+    /// rebuilt (the public mut accessors already do so).
+    pub(crate) builtin_runners: Vec<BuiltinRunner>,
     /// A simulated builtin is being verified in the executed Cairo
     /// code (so proving them only involves proving cairo steps), rather
     /// than being outputted as their own segment and proven later using
@@ -132,7 +135,14 @@ pub struct VirtualMachine {
     /// needs a mechanism for obtaining the segment pointer. See example
     /// implementation of this mechanism in `simulated_builtins.cairo`, or
     /// cairo-lang's `simple_bootloader.cairo`.
-    pub simulated_builtin_runners: Vec<BuiltinRunner>,
+    /// NOTE: see the mutation note on `builtin_runners`.
+    pub(crate) simulated_builtin_runners: Vec<BuiltinRunner>,
+    /// Maps a segment index to the runner (as an index into the
+    /// `builtin_runners` ++ `simulated_builtin_runners` chain) whose base is that segment,
+    /// or `NO_BUILTIN` for segments without one. Rebuilt lazily when
+    /// `builtin_lookup_dirty` is set.
+    builtin_segment_lookup: Vec<u32>,
+    builtin_lookup_dirty: bool,
     pub(crate) extended_resource_counter: HashMap<ExtendedExecutionResourceType, usize>,
     pub segments: MemorySegmentManager,
     pub(crate) trace: Option<Vec<TraceEntry>>,
@@ -173,6 +183,8 @@ impl VirtualMachine {
             run_context,
             builtin_runners: Vec::new(),
             simulated_builtin_runners: Vec::new(),
+            builtin_segment_lookup: Vec::new(),
+            builtin_lookup_dirty: true,
             extended_resource_counter: HashMap::new(),
             trace,
             current_step: 0,
@@ -348,24 +360,60 @@ impl VirtualMachine {
         Ok((None, None))
     }
 
-    fn deduce_memory_cell(
-        &self,
-        address: Relocatable,
-    ) -> Result<Option<MaybeRelocatable>, VirtualMachineError> {
-        let memory = &self.segments.memory;
+    /// Sentinel in `builtin_segment_lookup` for segments that have no builtin runner.
+    const NO_BUILTIN: u32 = u32::MAX;
 
-        for runner in self
+    /// Marks the builtin runner segment lookup as outdated; it will be rebuilt on the next
+    /// deduction. Must be called after any mutation that can change a runner's base or the
+    /// set of runners.
+    pub fn mark_builtin_runners_changed(&mut self) {
+        self.builtin_lookup_dirty = true;
+    }
+
+    fn rebuild_builtin_segment_lookup(&mut self) {
+        self.builtin_segment_lookup.clear();
+        for (index, runner) in self
             .builtin_runners
             .iter()
             .chain(self.simulated_builtin_runners.iter())
+            .enumerate()
         {
-            if runner.base() as isize == address.segment_index {
-                return runner
-                    .deduce_memory_cell(address, memory)
-                    .map_err(VirtualMachineError::RunnerError);
+            let base = runner.base();
+            if base >= self.builtin_segment_lookup.len() {
+                self.builtin_segment_lookup
+                    .resize(base + 1, Self::NO_BUILTIN);
+            }
+            // First runner wins, matching the linear scan this lookup replaces.
+            if self.builtin_segment_lookup[base] == Self::NO_BUILTIN {
+                self.builtin_segment_lookup[base] = index as u32;
             }
         }
-        Ok(None)
+        self.builtin_lookup_dirty = false;
+    }
+
+    fn deduce_memory_cell(
+        &mut self,
+        address: Relocatable,
+    ) -> Result<Option<MaybeRelocatable>, VirtualMachineError> {
+        if self.builtin_lookup_dirty {
+            self.rebuild_builtin_segment_lookup();
+        }
+        let index = usize::try_from(address.segment_index)
+            .ok()
+            .and_then(|segment| self.builtin_segment_lookup.get(segment).copied())
+            .unwrap_or(Self::NO_BUILTIN);
+        if index == Self::NO_BUILTIN {
+            return Ok(None);
+        }
+        let index = index as usize;
+        let runner = if index < self.builtin_runners.len() {
+            &self.builtin_runners[index]
+        } else {
+            &self.simulated_builtin_runners[index - self.builtin_runners.len()]
+        };
+        runner
+            .deduce_memory_cell(address, &self.segments.memory)
+            .map_err(VirtualMachineError::RunnerError)
     }
 
     ///Computes the value of res if possible
@@ -669,7 +717,7 @@ impl VirtualMachine {
     }
 
     fn compute_op0_deductions(
-        &self,
+        &mut self,
         op0_addr: Relocatable,
         res: &mut Option<MaybeRelocatable>,
         instruction: &Instruction,
@@ -691,7 +739,7 @@ impl VirtualMachine {
     }
 
     fn compute_op1_deductions(
-        &self,
+        &mut self,
         op1_addr: Relocatable,
         res: &mut Option<MaybeRelocatable>,
         instruction: &Instruction,
@@ -718,7 +766,7 @@ impl VirtualMachine {
     /// Compute operands and result, trying to deduce them if normal memory access returns a None
     /// value.
     pub fn compute_operands(
-        &self,
+        &mut self,
         instruction: &Instruction,
     ) -> Result<(Operands, OperandsAddresses, DeducedOperands), VirtualMachineError> {
         //Get operands from memory
@@ -1024,7 +1072,20 @@ impl VirtualMachine {
 
     /// Returns a mutable reference to the vector with all builtins present in the virtual machine
     pub fn get_builtin_runners_as_mut(&mut self) -> &mut Vec<BuiltinRunner> {
+        self.builtin_lookup_dirty = true;
         &mut self.builtin_runners
+    }
+
+    /// Returns the simulated builtin runners present in the virtual machine
+    pub fn get_simulated_builtin_runners(&self) -> &Vec<BuiltinRunner> {
+        &self.simulated_builtin_runners
+    }
+
+    /// Returns a mutable reference to the vector with the simulated builtin runners present in
+    /// the virtual machine
+    pub fn get_simulated_builtin_runners_as_mut(&mut self) -> &mut Vec<BuiltinRunner> {
+        self.builtin_lookup_dirty = true;
+        &mut self.simulated_builtin_runners
     }
 
     /// Returns a mutable iterator over all builtin runners used. That is, both builtin_runners and
@@ -1032,6 +1093,7 @@ impl VirtualMachine {
     pub fn get_all_builtin_runners_as_mut_iter(
         &mut self,
     ) -> impl Iterator<Item = &mut BuiltinRunner> {
+        self.builtin_lookup_dirty = true;
         self.builtin_runners
             .iter_mut()
             .chain(self.simulated_builtin_runners.iter_mut())
@@ -1456,6 +1518,8 @@ impl VirtualMachineBuilder {
             run_context: self.run_context,
             builtin_runners: self.builtin_runners,
             simulated_builtin_runners: Vec::new(),
+            builtin_segment_lookup: Vec::new(),
+            builtin_lookup_dirty: true,
             extended_resource_counter: HashMap::new(),
             trace: self.trace,
             current_step: self.current_step,
@@ -3793,7 +3857,7 @@ mod tests {
 
     #[test]
     fn deduce_memory_cell_no_pedersen_builtin() {
-        let vm = vm!();
+        let mut vm = vm!();
         assert_matches!(vm.deduce_memory_cell(Relocatable::from((0, 0))), Ok(None));
     }
 
