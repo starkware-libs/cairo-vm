@@ -232,6 +232,11 @@ pub struct CairoRunner {
     pub relocated_memory: Vec<Option<Felt252>>,
     pub exec_scopes: ExecutionScopes,
     pub relocated_trace: Option<Vec<RelocatedTraceEntry>>,
+    /// The program's hints, compiled on the first run call and reused by subsequent ones,
+    /// avoiding recompiling every hint each time a run method is called (e.g. the
+    /// `run_for_steps` calls of proof-mode trace padding). Assumes the same hint processor
+    /// is used across the runner's run calls.
+    hint_data: Option<Vec<Box<dyn Any>>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -267,6 +272,7 @@ impl CairoRunner {
                 None
             },
             relocated_trace: None,
+            hint_data: None,
         }
     }
 
@@ -768,6 +774,33 @@ impl CairoRunner {
             .collect()
     }
 
+    /// Takes the program's compiled hints out of the runner's cache, compiling them on first use.
+    fn take_hint_data(
+        &mut self,
+        hint_processor: &mut dyn HintProcessor,
+    ) -> Result<Vec<Box<dyn Any>>, VirtualMachineError> {
+        match self.hint_data.take() {
+            Some(hint_data) => Ok(hint_data),
+            None => self.get_hint_data(
+                &self.program.shared_program_data.reference_manager,
+                hint_processor,
+            ),
+        }
+    }
+
+    /// Returns a run's hint data to the cache, dropping the hints added during the run: their
+    /// ranges only live for that run.
+    fn restore_hint_data(&mut self, mut hint_data: Vec<Box<dyn Any>>) {
+        hint_data.truncate(
+            self.program
+                .shared_program_data
+                .hints_collection
+                .hints
+                .len(),
+        );
+        self.hint_data = Some(hint_data);
+    }
+
     pub fn get_constants(&self) -> &HashMap<String, Felt252> {
         &self.program.constants
     }
@@ -781,34 +814,38 @@ impl CairoRunner {
         address: Relocatable,
         hint_processor: &mut dyn HintProcessor,
     ) -> Result<(), VirtualMachineError> {
-        let references = &self.program.shared_program_data.reference_manager;
         let mut hints = RunHints::new(
-            self.get_hint_data(references, hint_processor)?,
+            self.take_hint_data(hint_processor)?,
             &self
                 .program
                 .shared_program_data
                 .hints_collection
                 .hints_ranges,
         );
-        #[cfg(feature = "test_utils")]
-        self.vm.execute_before_first_step(&hints.datas)?;
-        while self.vm.get_pc() != address && !hint_processor.consumed() {
-            self.vm.step(
-                hint_processor,
-                &mut self.exec_scopes,
-                &mut hints,
-                #[cfg(feature = "test_utils")]
-                &self.program.constants,
-            )?;
+        // Run in a closure so the hint data returns to the cache on errors too.
+        let result = (|| {
+            #[cfg(feature = "test_utils")]
+            self.vm.execute_before_first_step(&hints.datas)?;
+            while self.vm.get_pc() != address && !hint_processor.consumed() {
+                self.vm.step(
+                    hint_processor,
+                    &mut self.exec_scopes,
+                    &mut hints,
+                    #[cfg(feature = "test_utils")]
+                    &self.program.constants,
+                )?;
 
-            hint_processor.consume_step();
-        }
+                hint_processor.consume_step();
+            }
 
-        if self.vm.get_pc() != address {
-            return Err(VirtualMachineError::UnfinishedExecution);
-        }
+            if self.vm.get_pc() != address {
+                return Err(VirtualMachineError::UnfinishedExecution);
+            }
 
-        Ok(())
+            Ok(())
+        })();
+        self.restore_hint_data(hints.datas);
+        result
     }
 
     /// Execute an exact number of steps on the program from the actual position.
@@ -817,31 +854,34 @@ impl CairoRunner {
         steps: usize,
         hint_processor: &mut dyn HintProcessor,
     ) -> Result<(), VirtualMachineError> {
-        let references = &self.program.shared_program_data.reference_manager;
         let mut hints = RunHints::new(
-            self.get_hint_data(references, hint_processor)?,
+            self.take_hint_data(hint_processor)?,
             &self
                 .program
                 .shared_program_data
                 .hints_collection
                 .hints_ranges,
         );
+        // Run in a closure so the hint data returns to the cache on errors too.
+        let result = (|| {
+            for remaining_steps in (1..=steps).rev() {
+                if self.final_pc.as_ref() == Some(&self.vm.get_pc()) {
+                    return Err(VirtualMachineError::EndOfProgram(remaining_steps));
+                }
 
-        for remaining_steps in (1..=steps).rev() {
-            if self.final_pc.as_ref() == Some(&self.vm.get_pc()) {
-                return Err(VirtualMachineError::EndOfProgram(remaining_steps));
+                self.vm.step(
+                    hint_processor,
+                    &mut self.exec_scopes,
+                    &mut hints,
+                    #[cfg(feature = "test_utils")]
+                    &self.program.constants,
+                )?;
             }
 
-            self.vm.step(
-                hint_processor,
-                &mut self.exec_scopes,
-                &mut hints,
-                #[cfg(feature = "test_utils")]
-                &self.program.constants,
-            )?;
-        }
-
-        Ok(())
+            Ok(())
+        })();
+        self.restore_hint_data(hints.datas);
+        result
     }
 
     /// Execute steps until a number of steps since the start of the program is reached.
@@ -3463,6 +3503,50 @@ mod tests {
             cairo_runner.run_for_steps(8, &mut hint_processor),
             Err(VirtualMachineError::EndOfProgram(x)) if x == 8 - 2
         );
+    }
+
+    #[test]
+    /* Program used:
+    [ap] = 1, ap++;
+    %{ vm_enter_scope() %}  // hint attached to the second instruction (pc 2)
+    [ap] = 2, ap++;
+    ret
+    */
+    fn run_for_steps_reuses_cached_hints_across_calls() {
+        let program = program!(
+            data = vec_data!(
+                (5189976364521848832_i64),
+                (1),
+                (5189976364521848832_i64),
+                (2),
+                (2345108766317314046_i64)
+            ),
+            hints = std::collections::BTreeMap::from([(
+                2_usize,
+                vec![crate::serde::deserialize_program::HintParams {
+                    code: "vm_enter_scope()".to_string(),
+                    accessible_scopes: Vec::new(),
+                    flow_tracking_data: crate::serde::deserialize_program::FlowTrackingData {
+                        ap_tracking: crate::serde::deserialize_program::ApTracking::new(),
+                        reference_ids: HashMap::new(),
+                    },
+                }],
+            )]),
+            main = Some(0),
+        );
+
+        let mut hint_processor = BuiltinHintProcessor::new_empty();
+        let mut cairo_runner = cairo_runner!(program, LayoutName::all_cairo, false, true);
+        cairo_runner.initialize_segments(None);
+        cairo_runner.initialize_main_entrypoint().unwrap();
+        cairo_runner.initialize_vm().unwrap();
+
+        assert_eq!(cairo_runner.exec_scopes.data.len(), 1);
+        // One step per call, so the hint at pc 2 runs on hint data cached by the first call.
+        assert_matches!(cairo_runner.run_for_steps(1, &mut hint_processor), Ok(()));
+        assert_eq!(cairo_runner.exec_scopes.data.len(), 1);
+        assert_matches!(cairo_runner.run_for_steps(1, &mut hint_processor), Ok(()));
+        assert_eq!(cairo_runner.exec_scopes.data.len(), 2);
     }
 
     #[test]
