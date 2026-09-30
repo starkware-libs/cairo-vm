@@ -135,8 +135,6 @@ pub enum VirtualMachineError {
     MismatchReturnFPOffset(Box<(Relocatable, Relocatable)>),
     #[error("Return FP felt { } should equal expected final FP { } offset", (*.0).0, (*.0).1)]
     MismatchReturnFPFelt(Box<(Felt252, Relocatable)>),
-    #[error("Blake2s opcode invalid operand: op{0} does not point to {1} u32 numbers.")]
-    Blake2sInvalidOperand(u8, u8),
     #[error("Blake2s opcode invalid flags {0}")]
     InvalidBlake2sFlags(u128),
     #[error("QM31 add mul opcode invalid flags {0}")]

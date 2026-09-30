@@ -539,23 +539,17 @@ impl VirtualMachine {
     ) -> Result<(), VirtualMachineError> {
         let counter = self.segments.memory.get_u32(operands_addresses.dst_addr)?;
 
-        let state: [u32; 8] = (self.get_u32_range(
+        let state: [u32; 8] = self.segments.memory.get_u32_array(
             self.segments
                 .memory
                 .get_relocatable(operands_addresses.op0_addr)?,
-            8,
-        )?)
-        .try_into()
-        .map_err(|_| VirtualMachineError::Blake2sInvalidOperand(0, 8))?;
+        )?;
 
-        let message: [u32; 16] = (self.get_u32_range(
+        let message: [u32; 16] = self.segments.memory.get_u32_array(
             self.segments
                 .memory
                 .get_relocatable(operands_addresses.op1_addr)?,
-            16,
-        )?)
-        .try_into()
-        .map_err(|_| VirtualMachineError::Blake2sInvalidOperand(1, 16))?;
+        )?;
 
         let f0 = if is_last_block { 0xffffffff } else { 0 };
 
