@@ -35,6 +35,58 @@ lazy_static! {
     .unwrap();
 }
 
+/// The registered signatures of a signature builtin, keyed by the address of the pubkey cell
+/// of the (pubkey, message) instance they sign.
+pub(crate) type SignatureMap = Rc<RefCell<HashMap<Relocatable, Signature>>>;
+
+/// Validates a cell of a signature builtin segment: once both cells of a (pubkey, message)
+/// instance are known, the signature registered for it must verify.
+pub(crate) fn validate_signature_cell(
+    memory: &Memory,
+    addr: Relocatable,
+    signatures: &RefCell<HashMap<Relocatable, Signature>>,
+) -> Result<(), MemoryError> {
+    let cell_index = addr.offset % CELLS_PER_SIGNATURE as usize;
+
+    let (pubkey_addr, message_addr) = match cell_index {
+        0 => (addr, (addr + 1)?),
+        1 => match addr - 1 {
+            Ok(prev_addr) => (prev_addr, addr),
+            Err(_) => return Ok(()),
+        },
+        _ => return Ok(()),
+    };
+
+    let pubkey = match memory.get_integer(pubkey_addr) {
+        Ok(num) => num,
+        Err(_) if cell_index == 1 => return Ok(()),
+        _ => return Err(MemoryError::PubKeyNonInt(Box::new(pubkey_addr))),
+    };
+
+    let msg = match memory.get_integer(message_addr) {
+        Ok(num) => num,
+        Err(_) if cell_index == 0 => return Ok(()),
+        _ => return Err(MemoryError::MsgNonInt(Box::new(message_addr))),
+    };
+
+    let signatures_map = signatures.borrow();
+    let signature = signatures_map
+        .get(&pubkey_addr)
+        .ok_or_else(|| MemoryError::SignatureNotFound(Box::new(pubkey_addr)))?;
+
+    let public_key = Felt252::from_bytes_be(&pubkey.to_bytes_be());
+    let (r, s) = (signature.r, signature.s);
+    let message = Felt252::from_bytes_be(&msg.to_bytes_be());
+    match verify(&public_key, &message, &r, &s) {
+        Ok(true) => Ok(()),
+        _ => Err(MemoryError::InvalidSignature(Box::new((
+            format!("({}, {})", signature.r, signature.s),
+            pubkey.into_owned(),
+            msg.into_owned(),
+        )))),
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SignatureBuiltinRunner {
     pub(crate) included: bool,
@@ -98,52 +150,10 @@ impl SignatureBuiltinRunner {
         self.base
     }
     pub fn add_validation_rule(&self, memory: &mut Memory) {
-        let cells_per_instance = CELLS_PER_SIGNATURE;
-        let signatures = Rc::clone(&self.signatures);
-        let rule: ValidationRule = ValidationRule(Box::new(
-            move |memory: &Memory, addr: Relocatable| -> Result<Vec<Relocatable>, MemoryError> {
-                let cell_index = addr.offset % cells_per_instance as usize;
-
-                let (pubkey_addr, message_addr) = match cell_index {
-                    0 => (addr, (addr + 1)?),
-                    1 => match addr - 1 {
-                        Ok(prev_addr) => (prev_addr, addr),
-                        Err(_) => return Ok(vec![]),
-                    },
-                    _ => return Ok(vec![]),
-                };
-
-                let pubkey = match memory.get_integer(pubkey_addr) {
-                    Ok(num) => num,
-                    Err(_) if cell_index == 1 => return Ok(vec![]),
-                    _ => return Err(MemoryError::PubKeyNonInt(Box::new(pubkey_addr))),
-                };
-
-                let msg = match memory.get_integer(message_addr) {
-                    Ok(num) => num,
-                    Err(_) if cell_index == 0 => return Ok(vec![]),
-                    _ => return Err(MemoryError::MsgNonInt(Box::new(message_addr))),
-                };
-
-                let signatures_map = signatures.borrow();
-                let signature = signatures_map
-                    .get(&pubkey_addr)
-                    .ok_or_else(|| MemoryError::SignatureNotFound(Box::new(pubkey_addr)))?;
-
-                let public_key = Felt252::from_bytes_be(&pubkey.to_bytes_be());
-                let (r, s) = (signature.r, signature.s);
-                let message = Felt252::from_bytes_be(&msg.to_bytes_be());
-                match verify(&public_key, &message, &r, &s) {
-                    Ok(true) => Ok(vec![]),
-                    _ => Err(MemoryError::InvalidSignature(Box::new((
-                        format!("({}, {})", signature.r, signature.s),
-                        pubkey.into_owned(),
-                        msg.into_owned(),
-                    )))),
-                }
-            },
-        ));
-        memory.add_validation_rule(self.base, rule);
+        memory.add_validation_rule(
+            self.base,
+            ValidationRule::Signature(Rc::clone(&self.signatures)),
+        );
     }
 
     pub fn ratio(&self) -> Option<u32> {

@@ -52,6 +52,7 @@ pub use poseidon::PoseidonBuiltinRunner;
 pub use range_check::RangeCheckBuiltinRunner;
 pub use segment_arena::SegmentArenaBuiltinRunner;
 pub use signature::SignatureBuiltinRunner;
+pub(crate) use signature::{validate_signature_cell, SignatureMap};
 
 use super::cairo_pie::BuiltinAdditionalData;
 
