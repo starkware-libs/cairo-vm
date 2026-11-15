@@ -114,6 +114,8 @@ pub struct Cairo1RunConfig<'a> {
     ///   instances of the builtin) compared to their sizes at the end of the execution.
     pub disable_trace_padding: bool,
     pub max_traceback_entries: u32,
+    /// Reject instructions not supported by a dedicated Stwo opcode component.
+    pub disable_generic_opcodes: bool,
 }
 
 impl Default for Cairo1RunConfig<'_> {
@@ -130,6 +132,7 @@ impl Default for Cairo1RunConfig<'_> {
             dynamic_layout_params: None,
             disable_trace_padding: false,
             max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
+            disable_generic_opcodes: false,
         }
     }
 }
@@ -153,6 +156,7 @@ impl Cairo1RunConfig<'_> {
             self.disable_trace_padding,
             runner_mode,
             self.max_traceback_entries,
+            self.disable_generic_opcodes,
         )
     }
 }

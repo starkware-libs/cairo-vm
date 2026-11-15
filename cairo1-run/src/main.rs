@@ -146,6 +146,7 @@ fn run(args: impl Iterator<Item = String>) -> Result<Option<String>, Error> {
         dynamic_layout_params: cairo_layout_params,
         disable_trace_padding: false,
         max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
+        disable_generic_opcodes: false,
     };
 
     // Try to parse the file as a sierra program
