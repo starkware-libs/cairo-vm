@@ -12,6 +12,8 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 
 #### Upcoming Changes
 
+* feat: add `StwoOpcodeKind` and `classify_instruction`, which classify an instruction into the Stwo opcode component that proves it; `is_generic` (used by `disable_generic_opcodes`) now rejects instructions no component supports
+
 * feat: add a `disable_generic_opcodes` flag that makes the VM reject instructions not covered by a dedicated Stwo opcode component
   * Set it with `VirtualMachine::set_disable_generic_opcodes` or `VirtualMachineBuilder::disable_generic_opcodes` (disabled by default)
   * New error `VirtualMachineError::GenericOpcode`

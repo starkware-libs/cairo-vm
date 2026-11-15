@@ -4650,6 +4650,37 @@ mod tests {
     }
 
     #[test]
+    fn decode_current_instruction_generic_opcode_disabled() {
+        let mut vm = VirtualMachineBuilder::default()
+            .disable_generic_opcodes(true)
+            .build();
+        // A regular nop, which no Stwo opcode component supports.
+        vm.segments = segments![((0, 0), ("0000800080008000", 16))];
+        assert_matches!(
+            vm.decode_current_instruction(),
+            Err(VirtualMachineError::GenericOpcode(pc)) if *pc == (0, 0).into()
+        );
+    }
+
+    #[test]
+    fn decode_current_instruction_generic_opcode_enabled() {
+        let mut vm = vm!();
+        // A regular nop, which no Stwo opcode component supports.
+        vm.segments = segments![((0, 0), ("0000800080008000", 16))];
+        assert_matches!(vm.decode_current_instruction(), Ok(_));
+    }
+
+    #[test]
+    fn decode_current_instruction_supported_opcode_with_generic_disabled() {
+        let mut vm = VirtualMachineBuilder::default()
+            .disable_generic_opcodes(true)
+            .build();
+        // ret.
+        vm.segments = segments![((0, 0), ("208b7fff7fff7ffe", 16))];
+        assert_matches!(vm.decode_current_instruction(), Ok(_));
+    }
+
+    #[test]
     fn add_relocation_rule_test() {
         let mut vm = vm!();
 
