@@ -53,6 +53,8 @@ pub struct Cairo0RunConfig<'a> {
     pub disable_trace_padding: bool,
     pub allow_missing_builtins: Option<bool>,
     pub max_traceback_entries: u32,
+    /// Reject instructions not supported by a dedicated Stwo opcode component.
+    pub disable_generic_opcodes: bool,
 }
 
 impl Default for Cairo0RunConfig<'_> {
@@ -71,6 +73,7 @@ impl Default for Cairo0RunConfig<'_> {
             allow_missing_builtins: None,
             dynamic_layout_params: None,
             max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
+            disable_generic_opcodes: false,
         }
     }
 }
@@ -88,6 +91,7 @@ impl Cairo0RunConfig<'_> {
             self.disable_trace_padding,
             runner_mode,
             self.max_traceback_entries,
+            self.disable_generic_opcodes,
         )
     }
 }
@@ -102,6 +106,8 @@ pub struct StwoCairoRunConfig {
     pub disable_trace_padding: bool,
     pub runner_mode: RunnerMode,
     pub max_traceback_entries: u32,
+    /// Reject instructions not supported by a dedicated Stwo opcode component.
+    pub disable_generic_opcodes: bool,
 }
 
 impl Default for StwoCairoRunConfig {
@@ -115,6 +121,7 @@ impl Default for StwoCairoRunConfig {
             disable_trace_padding: true,
             runner_mode: RunnerMode::ProofModeCanonical,
             max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
+            disable_generic_opcodes: true,
         }
     }
 }
@@ -127,6 +134,7 @@ impl StwoCairoRunConfig {
             self.disable_trace_padding,
             self.runner_mode.clone(),
             self.max_traceback_entries,
+            self.disable_generic_opcodes,
         )
     }
 }

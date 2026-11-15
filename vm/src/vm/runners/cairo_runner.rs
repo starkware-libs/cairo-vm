@@ -179,6 +179,7 @@ pub struct CairoRunConfig {
     disable_trace_padding: bool,
     runner_mode: RunnerMode,
     max_traceback_entries: u32,
+    disable_generic_opcodes: bool,
 }
 
 impl CairoRunConfig {
@@ -188,6 +189,7 @@ impl CairoRunConfig {
         disable_trace_padding: bool,
         runner_mode: RunnerMode,
         max_traceback_entries: u32,
+        disable_generic_opcodes: bool,
     ) -> Result<Self, RunnerError> {
         // `disable_trace_padding` can only be used in `proof_mode`, so we enforce this here to
         // avoid unintended behavior.
@@ -200,6 +202,7 @@ impl CairoRunConfig {
             disable_trace_padding,
             runner_mode,
             max_traceback_entries,
+            disable_generic_opcodes,
         })
     }
 }
@@ -210,6 +213,7 @@ impl CairoRunConfig {
             trace_enabled: self.trace_enabled,
             disable_trace_padding: self.disable_trace_padding,
             max_traceback_entries: self.max_traceback_entries,
+            disable_generic_opcodes: self.disable_generic_opcodes,
         }
     }
 }
@@ -5893,6 +5897,7 @@ mod tests {
                     disable_trace_padding: true,
                     runner_mode: RunnerMode::ProofModeCanonical,
                     max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
+                    disable_generic_opcodes: true,
                 },
             )
             .unwrap();

@@ -159,6 +159,7 @@ fn run(args: impl Iterator<Item = String>) -> Result<(), Error> {
         dynamic_layout_params: cairo_layout_params,
         disable_trace_padding: false,
         max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
+        disable_generic_opcodes: false,
     };
 
     let mut cairo_runner = match if args.run_from_cairo_pie {
