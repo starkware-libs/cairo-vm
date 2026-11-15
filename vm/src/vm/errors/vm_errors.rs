@@ -141,6 +141,8 @@ pub enum VirtualMachineError {
     InvalidBlake2sFlags(u128),
     #[error("QM31 add mul opcode invalid flags {0}")]
     InvalidQM31AddMulFlags(u128),
+    #[error("Generic opcodes are disabled, but the instruction at {0} is generic")]
+    GenericOpcode(Box<Relocatable>),
 }
 
 #[cfg(test)]

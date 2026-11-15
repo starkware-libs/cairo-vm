@@ -20,7 +20,7 @@ use crate::{
     },
     vm::{
         context::run_context::RunContext,
-        decoding::decoder::decode_instruction,
+        decoding::decoder::{decode_instruction, is_generic},
         errors::{
             exec_scope_errors::ExecScopeError, memory_errors::MemoryError,
             vm_errors::VirtualMachineError,
@@ -129,6 +129,8 @@ pub struct VirtualMachine {
     run_finished: bool,
     // This flag is a parallel to the one in `struct CairoRunConfig`.
     pub(crate) disable_trace_padding: bool,
+    /// Reject instructions not supported by a dedicated Stwo opcode component.
+    disable_generic_opcodes: bool,
     instruction_cache: Vec<Option<Instruction>>,
     #[cfg(feature = "test_utils")]
     pub(crate) hooks: Option<Box<dyn crate::vm::hooks::StepHooks>>,
@@ -161,6 +163,7 @@ impl VirtualMachine {
             rc_limits: None,
             run_finished: false,
             disable_trace_padding,
+            disable_generic_opcodes: false,
             instruction_cache: Vec::new(),
             #[cfg(feature = "test_utils")]
             hooks: None,
@@ -560,7 +563,20 @@ impl VirtualMachine {
             .get_integer(self.run_context.pc)?
             .to_u128()
             .ok_or(VirtualMachineError::InvalidInstructionEncoding)?;
-        decode_instruction(instruction)
+        let instruction = decode_instruction(instruction)?;
+        // Checked at decode time, so cached instructions (segment 0) are checked once per pc.
+        if self.disable_generic_opcodes && is_generic(&instruction) {
+            return Err(VirtualMachineError::GenericOpcode(Box::new(
+                self.run_context.pc,
+            )));
+        }
+        Ok(instruction)
+    }
+
+    /// When set, the VM rejects instructions not supported by a dedicated Stwo opcode component
+    /// (see [`is_generic`]).
+    pub fn set_disable_generic_opcodes(&mut self, disable_generic_opcodes: bool) {
+        self.disable_generic_opcodes = disable_generic_opcodes;
     }
 
     #[cfg(not(feature = "extensive_hints"))]
@@ -1384,6 +1400,7 @@ pub struct VirtualMachineBuilder {
     run_finished: bool,
     #[cfg(feature = "test_utils")]
     pub(crate) hooks: Option<Box<dyn crate::vm::hooks::StepHooks>>,
+    disable_generic_opcodes: bool,
 }
 
 impl Default for VirtualMachineBuilder {
@@ -1404,6 +1421,7 @@ impl Default for VirtualMachineBuilder {
             run_finished: false,
             #[cfg(feature = "test_utils")]
             hooks: None,
+            disable_generic_opcodes: false,
         }
     }
 }
@@ -1453,6 +1471,14 @@ impl VirtualMachineBuilder {
         self
     }
 
+    pub fn disable_generic_opcodes(
+        mut self,
+        disable_generic_opcodes: bool,
+    ) -> VirtualMachineBuilder {
+        self.disable_generic_opcodes = disable_generic_opcodes;
+        self
+    }
+
     pub fn build(self) -> VirtualMachine {
         VirtualMachine {
             run_context: self.run_context,
@@ -1470,6 +1496,7 @@ impl VirtualMachineBuilder {
             hooks: self.hooks,
             relocation_table: None,
             disable_trace_padding: false,
+            disable_generic_opcodes: self.disable_generic_opcodes,
         }
     }
 }

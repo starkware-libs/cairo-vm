@@ -194,6 +194,14 @@ fn decode_offset(offset: u128) -> isize {
     isize::from(offset_16b as i16)
 }
 
+/// Returns `true` if `instruction` is a "generic" instruction, i.e. one that is not covered by any
+/// of the dedicated opcode components of the Stwo prover.
+// TODO: classify instructions according to the Stwo opcode components. Until then, no instruction
+// is considered generic.
+pub const fn is_generic(_instruction: &Instruction) -> bool {
+    false
+}
+
 #[cfg(test)]
 mod decoder_test {
     use super::*;

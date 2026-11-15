@@ -12,6 +12,11 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 
 #### Upcoming Changes
 
+* feat: add a `disable_generic_opcodes` flag that makes the VM reject instructions not covered by a dedicated Stwo opcode component
+  * Set it with `VirtualMachine::set_disable_generic_opcodes` or `VirtualMachineBuilder::disable_generic_opcodes` (disabled by default)
+  * New error `VirtualMachineError::GenericOpcode`
+  * The check runs when an instruction is decoded, so cached instructions are checked only once per pc
+
 #### [3.2.1] - 2026-07-14
 
 * fix: decrease spamming logs level to trace [#2385](https://github.com/starkware-libs/cairo-vm/pull/2385)
