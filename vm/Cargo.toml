@@ -53,6 +53,7 @@ rstest = { version = "0.17.0", default-features = false }
 iai-callgrind = "0.14.0"
 criterion = { version = "0.5.1", features = ["html_reports"] }
 proptest = "1.0.0"
+itertools = "0.11.0"
 mimalloc.workspace = true
 
 [[bench]]

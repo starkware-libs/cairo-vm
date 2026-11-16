@@ -891,6 +891,7 @@ dependencies = [
  "generic-array",
  "iai-callgrind",
  "indoc",
+ "itertools 0.11.0",
  "keccak",
  "lazy_static",
  "mimalloc",
