@@ -194,10 +194,337 @@ fn decode_offset(offset: u128) -> isize {
     isize::from(offset_16b as i16)
 }
 
+/// The instructions that are supported by the VM and by the Stwo prover.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum SupportedInstruction {
+    /// `ret`.
+    Ret,
+    /// `ap += imm` / `ap += [ap/fp + off2]`.
+    AddAp,
+    /// `jmp rel imm`.
+    JumpRelImm,
+    /// `jmp rel [ap/fp + off2]`.
+    JumpRel,
+    /// `jmp abs [[ap/fp + off1] + off2]`.
+    JumpDoubleDeref,
+    /// `jmp abs [ap/fp + off2]`.
+    JumpAbs,
+    /// `call rel imm`.
+    CallRelImm,
+    /// `call abs [ap/fp + off2]`.
+    CallAbs,
+    /// `jmp rel imm if [ap/fp + off0] != 0`.
+    Jnz,
+    /// `[ap/fp + off0] = imm`.
+    AssertEqImm,
+    /// `[ap/fp + off0] = [[ap/fp + off1] + off2]`.
+    AssertEqDoubleDeref,
+    /// `[ap/fp + off0] = [ap/fp + off2]`.
+    AssertEq,
+    /// `[ap/fp + off0] = [ap/fp + off1] * imm/[ap/fp + off2]`.
+    Mul,
+    /// `[ap/fp + off0] = [ap/fp + off1] + imm/[ap/fp + off2]`.
+    Add,
+    /// Blake2s compress / finalize.
+    Blake,
+    /// QM31 add / mul.
+    QM31AddMul,
+}
+
+/// Classifies instructions. Returns `None` if `instruction` is unsupported.
+pub const fn classify_instruction(instruction: &Instruction) -> Option<SupportedInstruction> {
+    // An immediate op1 is read from `[pc + off2]`, which must be the cell right after the
+    // instruction, i.e. `off2 == 1`.
+    if matches!(instruction.op1_addr, Op1Addr::Imm) && instruction.off2 != 1 {
+        return None;
+    }
+
+    match *instruction {
+        // ret.
+        Instruction {
+            off0: -2,
+            off1: -1,
+            off2: -1,
+            dst_register: Register::FP,
+            op0_register: Register::FP,
+            op1_addr: Op1Addr::FP,
+            res: Res::Op1,
+            pc_update: PcUpdate::Jump,
+            ap_update: ApUpdate::Regular,
+            fp_update: _,
+            opcode: Opcode::Ret,
+            opcode_extension: OpcodeExtension::Stone,
+        } => Some(SupportedInstruction::Ret),
+
+        // add ap.
+        Instruction {
+            off0: -1,
+            off1: -1,
+            off2: _,
+            dst_register: Register::FP,
+            op0_register: Register::FP,
+            op1_addr: Op1Addr::Imm | Op1Addr::FP | Op1Addr::AP,
+            res: Res::Op1,
+            pc_update: PcUpdate::Regular,
+            ap_update: ApUpdate::Add,
+            fp_update: _,
+            opcode: Opcode::NOp,
+            opcode_extension: OpcodeExtension::Stone,
+        } => {
+            // ap += imm.
+            // ap += [ap/fp + off2].
+            Some(SupportedInstruction::AddAp)
+        }
+
+        // jump rel imm.
+        Instruction {
+            off0: -1,
+            off1: -1,
+            off2: 1,
+            dst_register: Register::FP,
+            op0_register: Register::FP,
+            op1_addr: Op1Addr::Imm,
+            res: Res::Op1,
+            pc_update: PcUpdate::JumpRel,
+            ap_update: ApUpdate::Regular | ApUpdate::Add1,
+            fp_update: _,
+            opcode: Opcode::NOp,
+            opcode_extension: OpcodeExtension::Stone,
+        } => Some(SupportedInstruction::JumpRelImm),
+
+        // jump rel [ap/fp + off2].
+        Instruction {
+            off0: -1,
+            off1: -1,
+            off2: _,
+            dst_register: Register::FP,
+            op0_register: Register::FP,
+            op1_addr: Op1Addr::FP | Op1Addr::AP,
+            res: Res::Op1,
+            pc_update: PcUpdate::JumpRel,
+            ap_update: ApUpdate::Regular | ApUpdate::Add1,
+            fp_update: _,
+            opcode: Opcode::NOp,
+            opcode_extension: OpcodeExtension::Stone,
+        } => Some(SupportedInstruction::JumpRel),
+
+        // jump abs [[ap/fp + off1] + off2].
+        Instruction {
+            off0: -1,
+            off1: _,
+            off2: _,
+            dst_register: Register::FP,
+            op0_register: _,
+            op1_addr: Op1Addr::Op0,
+            res: Res::Op1,
+            pc_update: PcUpdate::Jump,
+            ap_update: ApUpdate::Regular | ApUpdate::Add1,
+            fp_update: _,
+            opcode: Opcode::NOp,
+            opcode_extension: OpcodeExtension::Stone,
+        } => Some(SupportedInstruction::JumpDoubleDeref),
+
+        // jump abs [ap/fp + off2].
+        Instruction {
+            off0: -1,
+            off1: -1,
+            off2: _,
+            dst_register: Register::FP,
+            op0_register: Register::FP,
+            op1_addr: Op1Addr::FP | Op1Addr::AP,
+            res: Res::Op1,
+            pc_update: PcUpdate::Jump,
+            ap_update: ApUpdate::Regular | ApUpdate::Add1,
+            fp_update: _,
+            opcode: Opcode::NOp,
+            opcode_extension: OpcodeExtension::Stone,
+        } => Some(SupportedInstruction::JumpAbs),
+
+        // call rel imm.
+        Instruction {
+            off0: 0,
+            off1: 1,
+            off2: 1,
+            dst_register: Register::AP,
+            op0_register: Register::AP,
+            op1_addr: Op1Addr::Imm,
+            res: Res::Op1,
+            pc_update: PcUpdate::JumpRel,
+            ap_update: ApUpdate::Add2,
+            fp_update: _,
+            opcode: Opcode::Call,
+            opcode_extension: OpcodeExtension::Stone,
+        } => Some(SupportedInstruction::CallRelImm),
+
+        // call abs [ap/fp + off2].
+        Instruction {
+            off0: 0,
+            off1: 1,
+            off2: _,
+            dst_register: Register::AP,
+            op0_register: Register::AP,
+            op1_addr: Op1Addr::FP | Op1Addr::AP,
+            res: Res::Op1,
+            pc_update: PcUpdate::Jump,
+            ap_update: ApUpdate::Add2,
+            fp_update: _,
+            opcode: Opcode::Call,
+            opcode_extension: OpcodeExtension::Stone,
+        } => Some(SupportedInstruction::CallAbs),
+
+        // jnz.
+        Instruction {
+            off0: _,
+            off1: -1,
+            off2: 1,
+            dst_register: _,
+            op0_register: Register::FP,
+            op1_addr: Op1Addr::Imm,
+            res: Res::Unconstrained,
+            pc_update: PcUpdate::Jnz,
+            ap_update: ApUpdate::Regular | ApUpdate::Add1,
+            fp_update: _,
+            opcode: Opcode::NOp,
+            opcode_extension: OpcodeExtension::Stone,
+        } => {
+            // jump rel imm if [ap/fp + off0] != 0.
+            Some(SupportedInstruction::Jnz)
+        }
+
+        // [ap/fp + off0] = imm.
+        Instruction {
+            off0: _,
+            off1: -1,
+            off2: 1,
+            dst_register: _,
+            op0_register: Register::FP,
+            op1_addr: Op1Addr::Imm,
+            res: Res::Op1,
+            pc_update: PcUpdate::Regular,
+            ap_update: ApUpdate::Regular | ApUpdate::Add1,
+            fp_update: _,
+            opcode: Opcode::AssertEq,
+            opcode_extension: OpcodeExtension::Stone,
+        } => Some(SupportedInstruction::AssertEqImm),
+
+        // [ap/fp + off0] = [[ap/fp + off1] + off2].
+        Instruction {
+            off0: _,
+            off1: _,
+            off2: _,
+            dst_register: _,
+            op0_register: _,
+            op1_addr: Op1Addr::Op0,
+            res: Res::Op1,
+            pc_update: PcUpdate::Regular,
+            ap_update: ApUpdate::Regular | ApUpdate::Add1,
+            fp_update: _,
+            opcode: Opcode::AssertEq,
+            opcode_extension: OpcodeExtension::Stone,
+        } => Some(SupportedInstruction::AssertEqDoubleDeref),
+
+        // [ap/fp + off0] = [ap/fp + off1].
+        Instruction {
+            off0: _,
+            off1: -1,
+            off2: _,
+            dst_register: _,
+            op0_register: Register::FP,
+            op1_addr: Op1Addr::FP | Op1Addr::AP,
+            res: Res::Op1,
+            pc_update: PcUpdate::Regular,
+            ap_update: ApUpdate::Regular | ApUpdate::Add1,
+            fp_update: _,
+            opcode: Opcode::AssertEq,
+            opcode_extension: OpcodeExtension::Stone,
+        } => Some(SupportedInstruction::AssertEq),
+
+        // mul.
+        Instruction {
+            off0: _,
+            off1: _,
+            off2: _,
+            dst_register: _,
+            op0_register: _,
+            op1_addr: Op1Addr::Imm | Op1Addr::FP | Op1Addr::AP,
+            res: Res::Mul,
+            pc_update: PcUpdate::Regular,
+            ap_update: ApUpdate::Regular | ApUpdate::Add1,
+            fp_update: _,
+            opcode: Opcode::AssertEq,
+            opcode_extension: OpcodeExtension::Stone,
+        } => {
+            // [ap/fp + off0] = [ap/fp + off1] * imm.
+            // [ap/fp + off0] = [ap/fp + off1] * [ap/fp + off2].
+            Some(SupportedInstruction::Mul)
+        }
+
+        // add.
+        Instruction {
+            off0: _,
+            off1: _,
+            off2: _,
+            dst_register: _,
+            op0_register: _,
+            op1_addr: Op1Addr::Imm | Op1Addr::FP | Op1Addr::AP,
+            res: Res::Add,
+            pc_update: PcUpdate::Regular,
+            ap_update: ApUpdate::Regular | ApUpdate::Add1,
+            fp_update: _,
+            opcode: Opcode::AssertEq,
+            opcode_extension: OpcodeExtension::Stone,
+        } => {
+            // [ap/fp + off0] = [ap/fp + off1] + imm.
+            // [ap/fp + off0] = [ap/fp + off1] + [ap/fp + off2].
+            Some(SupportedInstruction::Add)
+        }
+
+        // Blake.
+        Instruction {
+            off0: _,
+            off1: _,
+            off2: _,
+            dst_register: _,
+            op0_register: _,
+            op1_addr: Op1Addr::FP | Op1Addr::AP,
+            res: Res::Op1,
+            pc_update: PcUpdate::Regular,
+            ap_update: ApUpdate::Regular | ApUpdate::Add1,
+            fp_update: _,
+            opcode: Opcode::NOp,
+            opcode_extension: OpcodeExtension::Blake | OpcodeExtension::BlakeFinalize,
+        } => Some(SupportedInstruction::Blake),
+
+        // QM31 add mul.
+        Instruction {
+            off0: _,
+            off1: _,
+            off2: _,
+            dst_register: _,
+            op0_register: _,
+            op1_addr: Op1Addr::Imm | Op1Addr::FP | Op1Addr::AP,
+            res: Res::Add | Res::Mul,
+            pc_update: PcUpdate::Regular,
+            ap_update: ApUpdate::Regular | ApUpdate::Add1,
+            fp_update: _,
+            opcode: Opcode::AssertEq,
+            opcode_extension: OpcodeExtension::QM31Operation,
+        } => {
+            // [ap/fp + off0] = [ap/fp + off1] +/* [ap/fp/pc + off2]
+            Some(SupportedInstruction::QM31AddMul)
+        }
+
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod decoder_test {
     use super::*;
     use assert_matches::assert_matches;
+    use itertools::iproduct;
+    use rstest::rstest;
+    use std::collections::HashMap;
 
     #[test]
     fn non_zero_high_bits() {
@@ -505,5 +832,232 @@ mod decoder_test {
         assert_matches!(inst.ap_update, ApUpdate::Regular);
         assert_matches!(inst.fp_update, FpUpdate::Regular);
         assert_matches!(inst.opcode_extension, OpcodeExtension::QM31Operation);
+    }
+
+    // Flag bits (relative to bit 48 of the encoding).
+    const DST_FP: u128 = 1 << 0;
+    const OP0_FP: u128 = 1 << 1;
+    const OP1_IMM: u128 = 1 << 2;
+    const OP1_FP: u128 = 1 << 3;
+    const OP1_AP: u128 = 1 << 4;
+    const RES_ADD: u128 = 1 << 5;
+    const RES_MUL: u128 = 1 << 6;
+    const PC_JUMP: u128 = 1 << 7;
+    const PC_JUMP_REL: u128 = 1 << 8;
+    const PC_JNZ: u128 = 1 << 9;
+    const AP_ADD: u128 = 1 << 10;
+    const AP_ADD1: u128 = 1 << 11;
+    const CALL: u128 = 1 << 12;
+    const RET: u128 = 1 << 13;
+    const ASSERT_EQ: u128 = 1 << 14;
+    // Opcode extensions.
+    const STONE: u128 = 0;
+    const BLAKE: u128 = 1;
+    const BLAKE_FINALIZE: u128 = 2;
+    const QM31: u128 = 3;
+
+    fn encode(offsets: [i16; 3], flags: u128, opcode_extension: u128) -> u128 {
+        let biased = |off: i16| (off as u16).wrapping_add(0x8000) as u128;
+        biased(offsets[0])
+            | (biased(offsets[1]) << 16)
+            | (biased(offsets[2]) << 32)
+            | (flags << 48)
+            | (opcode_extension << 63)
+    }
+
+    #[rstest]
+    // ret.
+    #[case::ret(encode([-2, -1, -1], DST_FP | OP0_FP | OP1_FP | PC_JUMP | RET, STONE), SupportedInstruction::Ret)]
+    // ap += imm.
+    #[case::add_ap_imm(encode([-1, -1, 1], DST_FP | OP0_FP | OP1_IMM | AP_ADD, STONE), SupportedInstruction::AddAp)]
+    // ap += [fp].
+    #[case::add_ap_fp(encode([-1, -1, 0], DST_FP | OP0_FP | OP1_FP | AP_ADD, STONE), SupportedInstruction::AddAp)]
+    // jmp rel imm.
+    #[case::jump_rel_imm(encode([-1, -1, 1], DST_FP | OP0_FP | OP1_IMM | PC_JUMP_REL, STONE), SupportedInstruction::JumpRelImm)]
+    // jmp rel [ap - 2], ap++.
+    #[case::jump_rel(encode([-1, -1, -2], DST_FP | OP0_FP | OP1_AP | PC_JUMP_REL | AP_ADD1, STONE), SupportedInstruction::JumpRel)]
+    // jmp abs [[ap + 3] + 4].
+    #[case::jump_double_deref(encode([-1, 3, 4], DST_FP | PC_JUMP, STONE), SupportedInstruction::JumpDoubleDeref)]
+    // jmp abs [fp].
+    #[case::jump_abs(encode([-1, -1, 0], DST_FP | OP0_FP | OP1_FP | PC_JUMP, STONE), SupportedInstruction::JumpAbs)]
+    // call rel imm.
+    #[case::call_rel_imm(encode([0, 1, 1], OP1_IMM | PC_JUMP_REL | CALL, STONE), SupportedInstruction::CallRelImm)]
+    // call abs [fp - 1].
+    #[case::call_abs(encode([0, 1, -1], OP1_FP | PC_JUMP | CALL, STONE), SupportedInstruction::CallAbs)]
+    // jmp rel imm if [ap + 5] != 0.
+    #[case::jnz(encode([5, -1, 1], OP0_FP | OP1_IMM | PC_JNZ, STONE), SupportedInstruction::Jnz)]
+    // [ap] = imm, ap++.
+    #[case::assert_eq_imm(encode([0, -1, 1], OP0_FP | OP1_IMM | AP_ADD1 | ASSERT_EQ, STONE), SupportedInstruction::AssertEqImm)]
+    // [fp + 2] = [[ap - 2] + 2].
+    #[case::assert_eq_double_deref(encode([2, -2, 2], DST_FP | ASSERT_EQ, STONE), SupportedInstruction::AssertEqDoubleDeref)]
+    // [ap + 2] = [fp + 1].
+    #[case::assert_eq(encode([2, -1, 1], OP0_FP | OP1_FP | ASSERT_EQ, STONE), SupportedInstruction::AssertEq)]
+    // [fp + 2] = [fp] + imm.
+    #[case::add_imm(encode([2, 0, 1], DST_FP | OP0_FP | OP1_IMM | RES_ADD | ASSERT_EQ, STONE), SupportedInstruction::Add)]
+    // [ap] = [ap - 1] + [fp - 3], ap++.
+    #[case::add(encode([0, -1, -3], OP1_FP | RES_ADD | AP_ADD1 | ASSERT_EQ, STONE), SupportedInstruction::Add)]
+    // [ap] = [ap] * [ap], ap++.
+    #[case::mul(encode([0, 0, 0], OP1_AP | RES_MUL | AP_ADD1 | ASSERT_EQ, STONE), SupportedInstruction::Mul)]
+    #[case::blake(encode([1, 1, 1], DST_FP | OP0_FP | OP1_AP | AP_ADD1, BLAKE), SupportedInstruction::Blake)]
+    #[case::blake_finalize(encode([-5, -4, -3], OP0_FP | OP1_FP, BLAKE_FINALIZE), SupportedInstruction::Blake)]
+    #[case::qm31_mul(encode([1, 1, 1], OP1_FP | RES_MUL | ASSERT_EQ, QM31), SupportedInstruction::QM31AddMul)]
+    #[case::qm31_add_imm(encode([1, 1, 1], OP1_IMM | RES_ADD | AP_ADD1 | ASSERT_EQ, QM31), SupportedInstruction::QM31AddMul)]
+    fn non_generic_instruction_is_supported(
+        #[case] encoded_instr: u128,
+        #[case] expected: SupportedInstruction,
+    ) {
+        let instruction = decode_instruction(encoded_instr).unwrap();
+        assert_eq!(classify_instruction(&instruction), Some(expected));
+    }
+
+    #[rstest]
+    // Regular nop.
+    #[case::nop(encode([0, 0, 0], 0, STONE))]
+    // ret with off1 != -1.
+    #[case::ret_bad_off1(encode([-2, 0, -1], DST_FP | OP0_FP | OP1_FP | PC_JUMP | RET, STONE))]
+    // ret with op0 based on ap.
+    #[case::ret_op0_ap(encode([-2, -1, -1], DST_FP | OP1_FP | PC_JUMP | RET, STONE))]
+    // ret, ap++.
+    #[case::ret_with_ap_add1(encode([-2, -1, -1], DST_FP | OP0_FP | OP1_FP | PC_JUMP | RET | AP_ADD1, STONE))]
+    // A single instruction doing an add, a jump and an ap update.
+    #[case::nop_add_jump_add_ap(encode([0, 0, 0], DST_FP | OP0_FP | OP1_IMM | RES_ADD | PC_JUMP | AP_ADD, STONE))]
+    // ap += [[fp] + 0].
+    #[case::add_ap_double_deref(encode([-1, -1, 0], DST_FP | OP0_FP | AP_ADD, STONE))]
+    // ap += [fp] with dst off0 != -1.
+    #[case::add_ap_bad_off0(encode([0, -1, 0], DST_FP | OP0_FP | OP1_FP | AP_ADD, STONE))]
+    // jmp abs imm.
+    #[case::jump_abs_imm(encode([-1, -1, 1], DST_FP | OP0_FP | OP1_IMM | PC_JUMP, STONE))]
+    // jmp rel [[fp - 1] + 0].
+    #[case::jump_rel_double_deref(encode([-1, -1, 0], DST_FP | OP0_FP | PC_JUMP_REL, STONE))]
+    // jmp rel imm with dst off0 != -1.
+    #[case::jump_rel_imm_bad_off0(encode([0, -1, 1], DST_FP | OP0_FP | OP1_IMM | PC_JUMP_REL, STONE))]
+    // jmp abs [ap] with op0 based on ap.
+    #[case::jump_abs_op0_ap(encode([-1, -1, 0], DST_FP | OP1_AP | PC_JUMP, STONE))]
+    // jmp abs [ap] with off1 != -1.
+    #[case::jump_abs_bad_off1(encode([-1, 0, 0], DST_FP | OP0_FP | OP1_AP | PC_JUMP, STONE))]
+    // jmp rel imm with ap += [fp].
+    #[case::jump_with_ap_add(encode([-1, -1, 1], DST_FP | OP0_FP | OP1_IMM | PC_JUMP_REL | AP_ADD, STONE))]
+    // call that does not jump.
+    #[case::call_no_jump(encode([0, 1, 1], OP1_IMM | CALL, STONE))]
+    // call abs imm.
+    #[case::call_abs_imm(encode([0, 1, 1], OP1_IMM | PC_JUMP | CALL, STONE))]
+    // call abs [[ap + 1] + 0].
+    #[case::call_abs_double_deref(encode([0, 1, 0], PC_JUMP | CALL, STONE))]
+    // jmp rel [fp] if [ap] != 0.
+    #[case::jnz_not_imm(encode([0, -1, 0], OP0_FP | OP1_FP | PC_JNZ, STONE))]
+    // jmp rel imm if [ap] != 0 with off1 != -1.
+    #[case::jnz_bad_off1(encode([0, 0, 1], OP0_FP | OP1_IMM | PC_JNZ, STONE))]
+    // jmp rel imm if [ap] != 0 with op0 based on ap.
+    #[case::jnz_op0_ap(encode([0, -1, 1], OP1_IMM | PC_JNZ, STONE))]
+    // [ap] = imm with op0 based on ap.
+    #[case::assert_eq_imm_op0_ap(encode([0, -1, 1], OP1_IMM | ASSERT_EQ, STONE))]
+    // [ap] = imm with off1 != -1.
+    #[case::assert_eq_imm_bad_off1(encode([0, 0, 1], OP0_FP | OP1_IMM | ASSERT_EQ, STONE))]
+    // [ap] = [fp] with op0 based on ap.
+    #[case::assert_eq_op0_ap(encode([0, -1, 0], OP1_FP | ASSERT_EQ, STONE))]
+    // [ap] = [fp] with off1 != -1.
+    #[case::assert_eq_bad_off1(encode([0, 0, 0], OP0_FP | OP1_FP | ASSERT_EQ, STONE))]
+    // [ap] = [fp], with a jump.
+    #[case::assert_eq_with_jump(encode([0, -1, 0], OP0_FP | OP1_FP | PC_JUMP | ASSERT_EQ, STONE))]
+    // [ap] = [ap] + [[ap] + 0].
+    #[case::add_double_deref(encode([0, 0, 0], RES_ADD | ASSERT_EQ, STONE))]
+    // [ap] = [ap] * [[ap] + 0].
+    #[case::mul_double_deref(encode([0, 0, 0], RES_MUL | ASSERT_EQ, STONE))]
+    // [ap] = [[ap] + 0], ap += [[ap] + 0].
+    #[case::assert_eq_double_deref_with_ap_add(encode([0, 0, 0], AP_ADD | ASSERT_EQ, STONE))]
+    // [ap] = [ap] + imm, with a jump.
+    #[case::add_imm_with_jump(encode([0, 0, 1], OP1_IMM | RES_ADD | PC_JUMP | ASSERT_EQ, STONE))]
+    // [ap] * [ap] without an assert_eq.
+    #[case::mul_nop(encode([0, 0, 0], OP1_AP | RES_MUL, STONE))]
+    // [ap] = [ap] * [ap], ap += [ap].
+    #[case::mul_with_ap_add(encode([0, 0, 0], OP1_AP | RES_MUL | AP_ADD | ASSERT_EQ, STONE))]
+    // ap += imm with off2 != 1.
+    #[case::add_ap_imm_bad_off2(encode([-1, -1, 2], DST_FP | OP0_FP | OP1_IMM | AP_ADD, STONE))]
+    // [ap] = imm with off2 != 1.
+    #[case::assert_eq_imm_bad_off2(encode([0, -1, 0], OP0_FP | OP1_IMM | ASSERT_EQ, STONE))]
+    // call rel imm with off2 != 1.
+    #[case::call_rel_imm_bad_off2(encode([0, 1, 2], OP1_IMM | PC_JUMP_REL | CALL, STONE))]
+    // qm31 add imm with off2 != 1.
+    #[case::qm31_add_imm_bad_off2(encode([1, 1, 2], OP1_IMM | RES_ADD | ASSERT_EQ, QM31))]
+    // jmp abs [fp], ap += [fp].
+    #[case::jump_abs_with_ap_add(encode([-1, -1, 0], DST_FP | OP0_FP | OP1_FP | PC_JUMP | AP_ADD, STONE))]
+    // jmp abs [[fp - 1] + 0], ap += [[fp - 1] + 0].
+    #[case::jump_double_deref_with_ap_add(encode([-1, -1, 0], DST_FP | OP0_FP | PC_JUMP | AP_ADD, STONE))]
+    // jmp rel imm if [ap] != 0, ap += imm.
+    #[case::jnz_with_ap_add(encode([0, -1, 1], OP0_FP | OP1_IMM | PC_JNZ | AP_ADD, STONE))]
+    fn test_generic_instruction_is_unsupported(#[case] encoded_instr: u128) {
+        let instruction = decode_instruction(encoded_instr).unwrap();
+        assert_eq!(classify_instruction(&instruction), None);
+    }
+
+    /// Classifies every decodable instruction over all the flag combinations, all the opcode
+    /// extensions and a representative set of offsets, and catches a change in how many encodings
+    /// each kind of supported instruction accepts.
+    #[test]
+    fn classify_instruction_regression_test() {
+        // Offsets only matter where `decode_instruction` or `classify_instruction` check them against
+        // -2, -1, 0 or 1. Any other value takes the same path as 2, so these five values cover every
+        // behaviour.
+        const OFFSETS: [i16; 5] = [-2, -1, 0, 1, 2];
+        const N_FLAG_COMBINATIONS: u128 = 1 << 15;
+
+        let expected_counts = HashMap::from([
+            (SupportedInstruction::Ret, 1),
+            // op1 imm + op1 register * off2.
+            (SupportedInstruction::AddAp, 1 + 2 * 5),
+            // ap update.
+            (SupportedInstruction::JumpRelImm, 2),
+            // op1 register, off2, ap update.
+            (SupportedInstruction::JumpRel, 2 * 5 * 2),
+            // off1, off2, op0 register, ap update.
+            (SupportedInstruction::JumpDoubleDeref, 5 * 5 * 2 * 2),
+            // op1 register, off2, ap update.
+            (SupportedInstruction::JumpAbs, 2 * 5 * 2),
+            (SupportedInstruction::CallRelImm, 1),
+            // op1 register, off2.
+            (SupportedInstruction::CallAbs, 2 * 5),
+            // off0, dst register, ap update.
+            (SupportedInstruction::Jnz, 5 * 2 * 2),
+            // off0, dst register, ap update.
+            (SupportedInstruction::AssertEqImm, 5 * 2 * 2),
+            // off0, off1, off2, dst register, op0 register, ap update.
+            (
+                SupportedInstruction::AssertEqDoubleDeref,
+                5 * 5 * 5 * 2 * 2 * 2,
+            ),
+            // off0, off2, dst register, op1 register, ap update.
+            (SupportedInstruction::AssertEq, 5 * 5 * 2 * 2 * 2),
+            // off0, off1, dst register, op0 register, ap update, (op1 imm + op1 register * off2).
+            (SupportedInstruction::Mul, 5 * 5 * 2 * 2 * 2 * (1 + 2 * 5)),
+            // off0, off1, dst register, op0 register, ap update, (op1 imm + op1 register * off2).
+            (SupportedInstruction::Add, 5 * 5 * 2 * 2 * 2 * (1 + 2 * 5)),
+            // opcode extension, off0, off1, off2, dst register, op0 register, op1 register,
+            // ap update.
+            (SupportedInstruction::Blake, 2 * 5 * 5 * 5 * 2 * 2 * 2 * 2),
+            // res, off0, off1, dst register, op0 register, ap update,
+            // (op1 imm + op1 register * off2).
+            (
+                SupportedInstruction::QM31AddMul,
+                2 * 5 * 5 * 2 * 2 * 2 * (1 + 2 * 5),
+            ),
+        ]);
+
+        let mut counts = HashMap::new();
+        for (opcode_extension, flags, off0, off1, off2) in iproduct!(
+            [STONE, BLAKE, BLAKE_FINALIZE, QM31],
+            0..N_FLAG_COMBINATIONS,
+            OFFSETS,
+            OFFSETS,
+            OFFSETS
+        ) {
+            let encoded_instr = encode([off0, off1, off2], flags, opcode_extension);
+            let Ok(instruction) = decode_instruction(encoded_instr) else {
+                continue;
+            };
+            if let Some(supported) = classify_instruction(&instruction) {
+                *counts.entry(supported).or_insert(0) += 1;
+            }
+        }
+        assert_eq!(counts, expected_counts);
     }
 }
