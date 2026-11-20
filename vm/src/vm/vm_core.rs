@@ -19,7 +19,7 @@ use crate::{
     },
     vm::{
         context::run_context::RunContext,
-        decoding::decoder::decode_instruction,
+        decoding::decoder::{decode_instruction, is_supported},
         errors::{
             exec_scope_errors::ExecScopeError, memory_errors::MemoryError,
             vm_errors::VirtualMachineError,
@@ -581,7 +581,13 @@ impl VirtualMachine {
             .get_integer(self.run_context.pc)?
             .to_u128()
             .ok_or(VirtualMachineError::InvalidInstructionEncoding)?;
-        decode_instruction(instruction)
+        let instruction = decode_instruction(instruction)?;
+        if !is_supported(&instruction) {
+            return Err(VirtualMachineError::GenericInstruction(Box::new(
+                self.run_context.pc,
+            )));
+        }
+        Ok(instruction)
     }
 
     pub fn step_hint(
@@ -3268,10 +3274,10 @@ mod tests {
     fn compute_jnz() {
         let instruction = Instruction {
             off0: 1,
-            off1: 1,
+            off1: -1,
             off2: 1,
             dst_register: Register::AP,
-            op0_register: Register::AP,
+            op0_register: Register::FP,
             op1_addr: Op1Addr::Imm,
             res: Res::Unconstrained,
             pc_update: PcUpdate::Jnz,
@@ -3282,8 +3288,10 @@ mod tests {
         };
 
         let mut vm = vm!();
+        // jmp rel 4 if [ap + 1] != 0, with op0 = [fp - 1] = [ap + 1].
+        vm.run_context.fp = 2;
         vm.segments = segments![
-            ((0, 0), 0x206800180018001_i64),
+            ((0, 0), 0x20680017fff8001_i64),
             ((1, 1), 0x4),
             ((0, 1), 0x4)
         ];
@@ -4594,6 +4602,17 @@ mod tests {
         assert_matches!(
             vm.decode_current_instruction(),
             Err(VirtualMachineError::InvalidInstructionEncoding)
+        );
+    }
+
+    #[test]
+    fn decode_current_instruction_generic_instruction() {
+        let mut vm = vm!();
+        // A regular nop, which is an unsupported generic instruction.
+        vm.segments = segments![((0, 0), ("0000800080008000", 16))];
+        assert_matches!(
+            vm.decode_current_instruction(),
+            Err(VirtualMachineError::GenericInstruction(pc)) if *pc == (0, 0).into()
         );
     }
 

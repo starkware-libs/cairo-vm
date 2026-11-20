@@ -4210,8 +4210,9 @@ mod tests {
 
         cairo_runner.vm.segments.memory.data = vec![
             vec![
-                MemoryCell::new(Felt252::from(0x8000_8023_8012u64).into()),
-                MemoryCell::new(Felt252::from(0xBFFF_8000_0620u64).into()),
+                // [ap] = [ap + 35] + 0.
+                MemoryCell::new(Felt252::from(0x4024_8001_8023_8000u64).into()),
+                MemoryCell::new(Felt252::from(0).into()),
                 MemoryCell::new(Felt252::from(0x8FFF_8000_0750u64).into()),
             ],
             vec![MemoryCell::new((0isize, 0usize).into()); 128 * 1024],
