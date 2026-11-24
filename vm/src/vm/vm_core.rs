@@ -19,7 +19,7 @@ use crate::{
     },
     vm::{
         context::run_context::RunContext,
-        decoding::decoder::decode_instruction,
+        decoding::decoder::{classify_instruction, decode_instruction},
         errors::{
             exec_scope_errors::ExecScopeError, memory_errors::MemoryError,
             vm_errors::VirtualMachineError,
@@ -575,13 +575,20 @@ impl VirtualMachine {
     }
 
     fn decode_current_instruction(&self) -> Result<Instruction, VirtualMachineError> {
-        let instruction = self
+        let encoded_instruction = self
             .segments
             .memory
             .get_integer(self.run_context.pc)?
             .to_u128()
             .ok_or(VirtualMachineError::InvalidInstructionEncoding)?;
-        decode_instruction(instruction)
+        let instruction = decode_instruction(encoded_instruction)?;
+        classify_instruction(&instruction).ok_or_else(|| {
+            VirtualMachineError::GenericInstruction(Box::new((
+                self.run_context.pc,
+                encoded_instruction,
+            )))
+        })?;
+        Ok(instruction)
     }
 
     pub fn step_hint(
@@ -3268,10 +3275,10 @@ mod tests {
     fn compute_jnz() {
         let instruction = Instruction {
             off0: 1,
-            off1: 1,
+            off1: -1,
             off2: 1,
             dst_register: Register::AP,
-            op0_register: Register::AP,
+            op0_register: Register::FP,
             op1_addr: Op1Addr::Imm,
             res: Res::Unconstrained,
             pc_update: PcUpdate::Jnz,
@@ -3282,8 +3289,10 @@ mod tests {
         };
 
         let mut vm = vm!();
+        // jmp rel 4 if [ap + 1] != 0, with op0 = [fp - 1] = [ap + 1].
+        vm.run_context.fp = 2;
         vm.segments = segments![
-            ((0, 0), 0x206800180018001_i64),
+            ((0, 0), 0x20680017fff8001_i64),
             ((1, 1), 0x4),
             ((0, 1), 0x4)
         ];
@@ -4594,6 +4603,44 @@ mod tests {
         assert_matches!(
             vm.decode_current_instruction(),
             Err(VirtualMachineError::InvalidInstructionEncoding)
+        );
+    }
+
+    #[test]
+    fn decode_current_instruction_generic_instruction() {
+        let mut vm = vm!();
+        // A regular nop, which is an unsupported generic instruction.
+        vm.segments = segments![((0, 0), ("0000800080008000", 16))];
+        let err = vm.decode_current_instruction().unwrap_err();
+        assert_matches!(
+            &err,
+            VirtualMachineError::GenericInstruction(bx)
+                if **bx == ((0, 0).into(), 0x8000_8000_8000)
+        );
+        assert_eq!(
+            err.to_string(),
+            "Unsupported generic instruction at pc 0:0: 0x800080008000"
+        );
+    }
+
+    #[test]
+    fn initialize_and_run_generic_instruction() {
+        let program = program!(
+            data = vec_data!(
+                // A regular nop, which is an unsupported generic instruction.
+                (0x8000_8000_8000_i64),
+                // ret.
+                (2345108766317314046_i64)
+            ),
+            main = Some(0),
+        );
+        let mut hint_processor = BuiltinHintProcessor::new_empty();
+        let mut cairo_runner = cairo_runner!(program, LayoutName::all_cairo, false, true);
+        let end = cairo_runner.initialize(false).unwrap();
+        assert_matches!(
+            cairo_runner.run_until_pc(end, &mut hint_processor),
+            Err(VirtualMachineError::GenericInstruction(bx))
+                if *bx == ((0, 0).into(), 0x8000_8000_8000)
         );
     }
 
