@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790762100522,
+  "lastUpdate": 1795534011503,
   "repoUrl": "https://github.com/starkware-libs/cairo-vm",
   "entries": {
     "Benchmark": [
@@ -133888,6 +133888,42 @@ window.BENCHMARK_DATA = {
             "name": "parse program",
             "value": 6946555,
             "range": "± 307343",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "146624637+leo-starkware@users.noreply.github.com",
+            "name": "leo-starkware",
+            "username": "leo-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fc5fa135e7a69aa3ef138039e9b0de4cfb3c566f",
+          "message": "Reject generic instructions in the VM. (#2408)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T15:04:42Z",
+          "tree_id": "79d57f6cb82c49a87516c220763411fa535e7c8c",
+          "url": "https://github.com/starkware-libs/cairo-vm/commit/fc5fa135e7a69aa3ef138039e9b0de4cfb3c566f"
+        },
+        "date": 1795534004985,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "initialize",
+            "value": 5294,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse program",
+            "value": 5178352,
+            "range": "± 147993",
             "unit": "ns/iter"
           }
         ]
