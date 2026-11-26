@@ -2,13 +2,11 @@
 
 ### Version Guide
 
-Cairo VM maintains two parallel branches:
-- **2.x.y branch**: Stable API, minimal breaking changes
-- **3.x (main)**: New features with breaking API changes
-
-Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
+Releases v2.*.* and v3.* are not semver compatible (minor versions contained breaking changes).
 
 ---
+
+#### [4.0.0] - 2026-11-26
 
 #### Upcoming Changes
 * perf: cache decoded instructions for every segment code runs from, not just segment 0; programs loaded into other segments (e.g. Starknet OS contracts) no longer re-decode every step [#2396](https://github.com/starkware-libs/cairo-vm/pull/2396)
