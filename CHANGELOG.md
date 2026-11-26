@@ -2,22 +2,24 @@
 
 ### Version Guide
 
-Cairo VM maintains two parallel branches:
-- **2.x.y branch**: Stable API, minimal breaking changes
-- **3.x (main)**: New features with breaking API changes
-
-Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
+Releases v2.*.* and v3.* are not semver compatible (minor versions contained breaking changes).
 
 ---
 
-#### Upcoming Changes
-* perf: cache decoded instructions for every segment code runs from, not just segment 0; programs loaded into other segments (e.g. Starknet OS contracts) no longer re-decode every step [#2396](https://github.com/starkware-libs/cairo-vm/pull/2396)
+#### [4.0.0] - 2026-11-26
 
-* perf: pass operands by reference in `deduce_op1` and `update_registers` [#2404](https://github.com/starkware-libs/cairo-vm/pull/2404)
+**Summary**: Major release. The Cairo 1 hint processor moves into its own `cairo1-hint-processor` crate, so `cairo-vm` no longer depends on `cairo-lang-*`. The VM rejects instructions not covered by a dedicated Stwo opcode component. `CairoRunner` is now built from a single `CairoRunConfig`. Adds a Stwo runner API, and caches decoded instructions for every segment code runs from.
 
-* feat(BREAKING): the VM rejects "generic" instructions, i.e. instructions not covered by a dedicated Stwo opcode component, with the new error `VirtualMachineError::GenericInstruction`
+**Breaking Changes**
+
+* feat(BREAKING): the VM rejects "generic" instructions, i.e. instructions not covered by a dedicated Stwo opcode component, with the new error `VirtualMachineError::GenericInstruction` [#2408](https://github.com/starkware-libs/cairo-vm/pull/2408)
   * New enum `SupportedInstruction` and function `classify_instruction` in `vm::decoding::decoder`
   * The check runs when an instruction is decoded, so cached instructions are checked only once per pc
+
+* refactor(BREAKING): move the Cairo 1 hint processor into its own `cairo1-hint-processor` crate, so `cairo-vm` no longer depends on `cairo-lang-*` [#2390](https://github.com/starkware-libs/cairo-vm/pull/2390)
+  * The `cairo-1-hints` feature is removed; depend on `cairo1-hint-processor` instead
+  * `cairo_vm::hint_processor::cairo_1_hint_processor::*` moved to `cairo1_hint_processor::*`
+  * `impl TryFrom<CasmContractClass> for Program` is now `cairo1_hint_processor::program_from_casm_contract_class`
 
 * refactor(BREAKING): remove the `extensive_hints` feature; hints added at runtime are now always supported, at no cost to runs that add none [#2401](https://github.com/starkware-libs/cairo-vm/pull/2401)
   * The `extensive_hints` feature is removed from `cairo-vm` and `cairo1-hint-processor`
@@ -25,59 +27,64 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
   * `add_relocation_rule` always takes a `MaybeRelocatable` destination
   * `HintsCollection::get_hint_range_for_pc` is removed; `HintsCollection::hints_ranges` is now public
 
-* refactor(BREAKING): move the Cairo 1 hint processor into its own `cairo1-hint-processor` crate, so `cairo-vm` no longer depends on `cairo-lang-*` [#2390](https://github.com/starkware-libs/cairo-vm/pull/2390)
-  * The `cairo-1-hints` feature is removed; depend on `cairo1-hint-processor` instead
-  * `cairo_vm::hint_processor::cairo_1_hint_processor::*` moved to `cairo1_hint_processor::*`
-  * `impl TryFrom<CasmContractClass> for Program` is now `cairo1_hint_processor::program_from_casm_contract_class`
+* fix(BREAKING): remove the `mod_builtin` feature [#2387](https://github.com/starkware-libs/cairo-vm/pull/2387)
 
-* ci: pin GitHub Actions to commit SHAs and bump deprecated `upload-artifact`/`download-artifact` to v4 [#2388](https://github.com/starkware-libs/cairo-vm/pull/2388)
+* feat(BREAKING): consolidate `CairoRunner` constructors [#2368](https://github.com/starkware-libs/cairo-vm/pull/2368)
+  * `CairoRunner::new_v2` is removed; `CairoRunner::new(&Program, &CairoRunConfig)` is the only constructor
 
-* fix: remove feature mod_builtin [#2387](https://github.com/starkware-libs/cairo-vm/pull/2387)
+* feat(BREAKING): create and use `CairoRunConfig` as the constructor argument for `CairoRunner` [#2367](https://github.com/starkware-libs/cairo-vm/pull/2367)
 
-* fix: decrease spamming logs level to trace [#2385](https://github.com/starkware-libs/cairo-vm/pull/2385)
+* feat(BREAKING): `CairoRunner` constructors take a `CairoLayout` directly [#2363](https://github.com/starkware-libs/cairo-vm/pull/2363)
+
+* refactor(BREAKING): rename `cairo_run::CairoRunConfig` to `Cairo0RunConfig` [#2365](https://github.com/starkware-libs/cairo-vm/pull/2365)
+
+* feat(BREAKING): create and use `VirtualMachineConfig`; `VirtualMachine::new` takes a `&VirtualMachineConfig` [#2369](https://github.com/starkware-libs/cairo-vm/pull/2369)
+
+* fix(BREAKING): `get_extended_execution_resources` counts in `usize` instead of `u32` [#2349](https://github.com/starkware-libs/cairo-vm/pull/2349)
+
+**Features**
+
+* Add Stwo cairo runner API (`StwoCairoRunConfig`, `cairo_run_stwo`, `cairo_run_pie_stwo`) [#2351](https://github.com/starkware-libs/cairo-vm/pull/2351)
+
+* feat: move `runner_mode` to be a field in `StwoCairoRunConfig` [#2366](https://github.com/starkware-libs/cairo-vm/pull/2366)
+
+* feat: add function-runner methods to `CairoRunner` (`new_for_testing`, `run_default_cairo0`, `get_builtin_base`, `run_from_entrypoint`, `get_function_pc`) and broaden `CairoArg`/`MaybeRelocatable` conversions to primitive and big integers, under the `test_utils` feature [#2359](https://github.com/starkware-libs/cairo-vm/pull/2359)
 
 * feat: add `test_helpers` module (`error_utils`, `test_utils`) with `assert_mr_eq`, `load_cairo_program!` macro and `expect_*` error checkers, behind `test_utils` feature flag [#2381](https://github.com/starkware-libs/cairo-vm/pull/2381)
 
-* feat(makefile,ci): add `cairo_test_suite_programs` Makefile target and CI integration to compile Cairo test suite programs before running tests [#2380](https://github.com/starkware-libs/cairo-vm/pull/2380)
-
-* Add Stwo cairo runner API [#2351](https://github.com/starkware-libs/cairo-vm/pull/2351)
+* feat: implement `CairoLayout::new` from layout name and dynamic params [#2362](https://github.com/starkware-libs/cairo-vm/pull/2362)
 
 * feat: make max traceback entries configurable [#2370](https://github.com/starkware-libs/cairo-vm/pull/2370)
 
-* feat: create and use VirtualMachineConfig [#2369](https://github.com/starkware-libs/cairo-vm/pull/2369)
+* feat: add `disable_trace_padding` field to `Cairo1RunConfig` [#2364](https://github.com/starkware-libs/cairo-vm/pull/2364)
 
-* feat: consolidate CairoRunner ctors [#2368](https://github.com/starkware-libs/cairo-vm/pull/2368)
+**Performance**
 
-* feat: create and use CairoRunConfig as ctor arg for CairoRunner ctors [#2367](https://github.com/starkware-libs/cairo-vm/pull/2367)
+* perf: cache decoded instructions for every segment code runs from, not just segment 0; programs loaded into other segments (e.g. Starknet OS contracts) no longer re-decode every step [#2396](https://github.com/starkware-libs/cairo-vm/pull/2396)
 
-* feat: move runner_mode to be a field in StwoCairoRunConfig [#2366](https://github.com/starkware-libs/cairo-vm/pull/2366)
+* perf: pass operands by reference in `deduce_op1` and `update_registers` [#2404](https://github.com/starkware-libs/cairo-vm/pull/2404)
 
-* refactor: rename CairoRunConfig to Cairo0RunConfig [#2365](https://github.com/starkware-libs/cairo-vm/pull/2365)
-
-* feat: add disable_trace_padding field to Cairo1RunConfig [#2364](https://github.com/starkware-libs/cairo-vm/pull/2364)
-
-* feat: refactor CairoRunner ctors to accept CairoLayout directly [#2363](https://github.com/starkware-libs/cairo-vm/pull/2363)
-
-* feat: implement CairoLayout::new from layout name and dynamic params [#2362](https://github.com/starkware-libs/cairo-vm/pull/2362)
-
-* Add Stwo cairo runner API [#2351](https://github.com/lambdaclass/cairo-vm/pull/2351)
-
-* Add union merge strategy for CHANGELOG.md [#2345](https://github.com/starkware-libs/cairo-vm/pull/2345)
+**Bug Fixes**
 
 * fix: Fix off-by-one comparisons in `split_int`, `assert_250_bit`, and `sqrt` hints [#2348](https://github.com/starkware-libs/cairo-vm/pull/2348)
 
-#### [3.2.0] - 2026-3-24
+* fix: decrease spamming logs level to trace [#2385](https://github.com/starkware-libs/cairo-vm/pull/2385)
 
-* adding codecov app.# added by sobhe.
-* feat: Add `CairoFunctionRunner` for running Cairo entrypoints by name or PC, and broaden `CairoArg`/`MaybeRelocatable` conversions to support primitive signed/unsigned integers and big integers [#2352](https://github.com/lambdaclass/cairo-vm/pull/2352)
-* chore: Add `CairoFunctionRunner` for running Cairo entrypoints by name or PC, and broaden `CairoArg`/`MaybeRelocatable` conversions to support primitive signed/unsigned integers and big integers [#2352](https://github.com/lambdaclass/cairo-vm/pull/2352)
+**Internal/Chores**
 
-* chore: Add unit tests for `CairoFunctionRunner`, `CairoArg` conversions/macros, and `MaybeRelocatable` conversion macro coverage [#2354](https://github.com/lambdaclass/cairo-vm/pull/2354)
-* chore: Add function-runner methods to `CairoRunner` (`new_for_testing`, `run_default_cairo0`, `get_builtin_base`, `run_from_entrypoint`) under the `test_utils` feature [#2359](https://github.com/starkware-libs/cairo-vm/pull/2359)
+* ci: pin GitHub Actions to commit SHAs and bump deprecated `upload-artifact`/`download-artifact` to v4 [#2388](https://github.com/starkware-libs/cairo-vm/pull/2388) [#2399](https://github.com/starkware-libs/cairo-vm/pull/2399)
+
+* feat(makefile,ci): add `cairo_test_suite_programs` Makefile target and CI integration to compile Cairo test suite programs before running tests [#2380](https://github.com/starkware-libs/cairo-vm/pull/2380)
+
+* ci: add the code coverage workflow to the workflows list [#2373](https://github.com/starkware-libs/cairo-vm/pull/2373)
+
+* Update links to upstream repo [#2374](https://github.com/starkware-libs/cairo-vm/pull/2374)
+
+* Add union merge strategy for CHANGELOG.md [#2345](https://github.com/starkware-libs/cairo-vm/pull/2345)
+
+* Remove benchmark alert user mention [#2346](https://github.com/starkware-libs/cairo-vm/pull/2346)
 
 #### [3.2.0] - 2026-3-3
-
-* fix: Change extended_resource_counter entry from u32 to usize [#2349](https://github.com/starkware-libs/cairo-vm/pull/2349)
 
 * chore: Update fuzz_json with missing hint constants and improve fuzzer docs [#2341](https://github.com/starkware-libs/cairo-vm/pull/2341)
 

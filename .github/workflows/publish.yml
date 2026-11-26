@@ -6,8 +6,8 @@ on:
       - '*'
 
 jobs:
-  publish:
-    name: Publish
+  publish-vm:
+    name: Publish cairo-vm
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
@@ -18,3 +18,18 @@ jobs:
       env:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       run: cargo publish --token ${CRATES_TOKEN} --all-features -p cairo-vm
+
+  publish-cairo1-hint-processor:
+    name: Publish cairo1-hint-processor
+    # Depends on the cairo-vm version published by the job above.
+    needs: publish-vm
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+    - name: Install stable toolchain
+      uses: dtolnay/rust-toolchain@451ce45ce31d200b52705aadd15ce75018b006de # 1.89.0
+    - name: Publish crate cairo1-hint-processor
+      env:
+          CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      run: cargo publish --token ${CRATES_TOKEN} -p cairo1-hint-processor
