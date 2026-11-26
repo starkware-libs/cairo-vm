@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795685084937,
+  "lastUpdate": 1795694635988,
   "repoUrl": "https://github.com/starkware-libs/cairo-vm",
   "entries": {
     "Benchmark": [
@@ -133960,6 +133960,42 @@ window.BENCHMARK_DATA = {
             "name": "parse program",
             "value": 8651501,
             "range": "± 565035",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "104711814+orizi@users.noreply.github.com",
+            "name": "orizi",
+            "username": "orizi"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0210c7f8dfa0fc84b18540323db32dd7670b9747",
+          "message": "perf: cache decoded instructions for all segments (#2396)\n\nThe instruction cache only covered segment 0, so programs loaded into\nother segments (e.g. contracts run by the Starknet OS) decoded every\ninstruction on every step. Keep one cache per segment; temporary\nsegments stay uncached. The cached instruction is copied out instead of\ntaking the whole cache vector out and resizing it on every step, which\nalso keeps the cache intact if run_instruction fails.\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-26T11:53:48Z",
+          "tree_id": "8da049e205d4dd7773808b81ca74999bcdf52f6a",
+          "url": "https://github.com/starkware-libs/cairo-vm/commit/0210c7f8dfa0fc84b18540323db32dd7670b9747"
+        },
+        "date": 1795694628122,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "initialize",
+            "value": 11547,
+            "range": "± 218",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse program",
+            "value": 9125674,
+            "range": "± 267319",
             "unit": "ns/iter"
           }
         ]
