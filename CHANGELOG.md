@@ -11,6 +11,8 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 ---
 
 #### Upcoming Changes
+* perf: compile the program's hints once per `CairoRunner` instead of on every run call; proof-mode trace padding no longer recompiles all hints per padding step [#2400](https://github.com/starkware-libs/cairo-vm/pull/2400)
+
 * perf: pass operands by reference in `deduce_op1` and `update_registers` [#2404](https://github.com/starkware-libs/cairo-vm/pull/2404)
 
 * feat(BREAKING): the VM rejects "generic" instructions, i.e. instructions not covered by a dedicated Stwo opcode component, with the new error `VirtualMachineError::GenericInstruction`
