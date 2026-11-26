@@ -18,3 +18,7 @@ jobs:
       env:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       run: cargo publish --token ${CRATES_TOKEN} --all-features -p cairo-vm
+    - name: Publish crate cairo1-hint-processor
+      env:
+          CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      run: cargo publish --token ${CRATES_TOKEN} -p cairo1-hint-processor
