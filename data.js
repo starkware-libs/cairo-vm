@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795694635988,
+  "lastUpdate": 1795705914143,
   "repoUrl": "https://github.com/starkware-libs/cairo-vm",
   "entries": {
     "Benchmark": [
@@ -133996,6 +133996,42 @@ window.BENCHMARK_DATA = {
             "name": "parse program",
             "value": 9125674,
             "range": "± 267319",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "146624637+leo-starkware@users.noreply.github.com",
+            "name": "leo-starkware",
+            "username": "leo-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3c3f112d8a40ec465bde6b59e2c659df39b7dbc6",
+          "message": "Bump to 4.0.0 (#2409)\n\n* Prepare for 4.0.0\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n* Define the crates.io token once in the publish workflow\n\nSet it as the workflow-level CARGO_REGISTRY_TOKEN, which `cargo publish`\nreads, instead of passing --token in each job.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-26T15:02:48Z",
+          "tree_id": "a1b559b0c45ba569afb5c4a20ac1475addc3a4b8",
+          "url": "https://github.com/starkware-libs/cairo-vm/commit/3c3f112d8a40ec465bde6b59e2c659df39b7dbc6"
+        },
+        "date": 1795705908848,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "initialize",
+            "value": 5266,
+            "range": "± 145",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse program",
+            "value": 5392633,
+            "range": "± 117225",
             "unit": "ns/iter"
           }
         ]
