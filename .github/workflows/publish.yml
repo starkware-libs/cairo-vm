@@ -5,6 +5,10 @@ on:
     tags:
       - '*'
 
+env:
+  # Read by `cargo publish`.
+  CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN_2 }}
+
 jobs:
   publish-vm:
     name: Publish cairo-vm
@@ -15,9 +19,7 @@ jobs:
     - name: Install stable toolchain
       uses: dtolnay/rust-toolchain@451ce45ce31d200b52705aadd15ce75018b006de # 1.89.0
     - name: Publish crate cairo-vm
-      env:
-          CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN_2 }}
-      run: cargo publish --token ${CRATES_TOKEN} --all-features -p cairo-vm
+      run: cargo publish --all-features -p cairo-vm
 
   publish-cairo1-hint-processor:
     name: Publish cairo1-hint-processor
@@ -30,6 +32,4 @@ jobs:
     - name: Install stable toolchain
       uses: dtolnay/rust-toolchain@451ce45ce31d200b52705aadd15ce75018b006de # 1.89.0
     - name: Publish crate cairo1-hint-processor
-      env:
-          CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN_2 }}
-      run: cargo publish --token ${CRATES_TOKEN} -p cairo1-hint-processor
+      run: cargo publish -p cairo1-hint-processor
