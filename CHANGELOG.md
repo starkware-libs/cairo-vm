@@ -11,6 +11,8 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 ---
 
 #### Upcoming Changes
+* perf: skip relocation in `Memory::get` for values that do not point into a temporary segment [#2402](https://github.com/starkware-libs/cairo-vm/pull/2402)
+
 * perf: pass operands by reference in `deduce_op1` and `update_registers` [#2404](https://github.com/starkware-libs/cairo-vm/pull/2404)
 
 * feat(BREAKING): the VM rejects "generic" instructions, i.e. instructions not covered by a dedicated Stwo opcode component, with the new error `VirtualMachineError::GenericInstruction`

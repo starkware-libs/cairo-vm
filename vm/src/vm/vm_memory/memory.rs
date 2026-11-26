@@ -266,7 +266,14 @@ impl Memory {
             .get_segment_cells(relocatable.segment_index)?
             .get(relocatable.offset)?
             .get_value()?;
-        Some(Cow::Owned(self.relocate_value(&value).ok()?.into_owned()))
+        // Only values pointing into a temporary segment can be affected by relocation rules,
+        // so skip the relocation machinery for everything else.
+        Some(match value {
+            MaybeRelocatable::RelocatableValue(addr) if addr.segment_index < 0 => {
+                Cow::Owned(self.relocate_value(addr).ok()?)
+            }
+            value => Cow::Owned(value),
+        })
     }
 
     // Version of Memory.relocate_value() that doesn't require a self reference
