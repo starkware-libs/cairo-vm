@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795534011503,
+  "lastUpdate": 1795685084937,
   "repoUrl": "https://github.com/starkware-libs/cairo-vm",
   "entries": {
     "Benchmark": [
@@ -133924,6 +133924,42 @@ window.BENCHMARK_DATA = {
             "name": "parse program",
             "value": 5178352,
             "range": "± 147993",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "104711814+orizi@users.noreply.github.com",
+            "name": "orizi",
+            "username": "orizi"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1e0bb766f65d8ecb2a677c2214d9de7255e877d1",
+          "message": "perf: pass operands by reference in deduce_op1 and update_registers (#2404)\n\ndeduce_op1 took op0 by value, forcing a felt clone per deduced operand,\nand update_registers took the ~168-byte Operands by value on every step.\nTake both by reference.\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-26T09:15:04Z",
+          "tree_id": "30a39384da8bc5e579285254faa02685cc758018",
+          "url": "https://github.com/starkware-libs/cairo-vm/commit/1e0bb766f65d8ecb2a677c2214d9de7255e877d1"
+        },
+        "date": 1795685076550,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "initialize",
+            "value": 11602,
+            "range": "± 152",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse program",
+            "value": 8651501,
+            "range": "± 565035",
             "unit": "ns/iter"
           }
         ]
