@@ -121,9 +121,8 @@ mod tests {
             vm.segments
                 .memory
                 .get(&MaybeRelocatable::from((1, 0)))
-                .unwrap()
-                .as_ref(),
-            &MaybeRelocatable::Int(Felt252::ZERO)
+                .unwrap(),
+            MaybeRelocatable::Int(Felt252::ZERO)
         )
     }
 

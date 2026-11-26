@@ -428,8 +428,8 @@ mod tests {
         let current_ptr = segments.load_data(ptr, &data).unwrap();
         assert_eq!(current_ptr, Relocatable::from((0, 1)));
         assert_eq!(
-            segments.memory.get(&ptr).unwrap().as_ref(),
-            &MaybeRelocatable::from(Felt252::from(4))
+            segments.memory.get(&ptr).unwrap(),
+            MaybeRelocatable::from(Felt252::from(4))
         );
     }
 
@@ -447,24 +447,22 @@ mod tests {
         assert_eq!(current_ptr, Relocatable::from((0, 3)));
 
         assert_eq!(
-            segments.memory.get(&ptr).unwrap().as_ref(),
-            &MaybeRelocatable::from(Felt252::from(4))
+            segments.memory.get(&ptr).unwrap(),
+            MaybeRelocatable::from(Felt252::from(4))
         );
         assert_eq!(
             segments
                 .memory
                 .get(&MaybeRelocatable::from((0, 1)))
-                .unwrap()
-                .as_ref(),
-            &MaybeRelocatable::from(Felt252::from(5))
+                .unwrap(),
+            MaybeRelocatable::from(Felt252::from(5))
         );
         assert_eq!(
             segments
                 .memory
                 .get(&MaybeRelocatable::from((0, 2)))
-                .unwrap()
-                .as_ref(),
-            &MaybeRelocatable::from(Felt252::from(6))
+                .unwrap(),
+            MaybeRelocatable::from(Felt252::from(6))
         );
     }
     #[test]

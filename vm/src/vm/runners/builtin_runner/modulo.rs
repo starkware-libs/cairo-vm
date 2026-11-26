@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap};
+use std::collections::BTreeMap;
 
 use crate::{
     air_private_input::{ModInput, ModInputInstance, ModInputMemoryVars, PrivateInput},
@@ -283,7 +283,7 @@ impl ModBuiltinRunner {
         let mut value = BigUint::zero();
         for i in 0..N_WORDS {
             let addr_i = (addr + i)?;
-            match memory.get(&addr_i).map(Cow::into_owned) {
+            match memory.get(&addr_i) {
                 None => return Ok((words, None)),
                 Some(MaybeRelocatable::RelocatableValue(_)) => {
                     return Err(MemoryError::ExpectedInteger(Box::new(addr_i)).into())
@@ -411,8 +411,7 @@ impl ModBuiltinRunner {
             let addr = (offsets_ptr + i)?;
             let offset = memory
                 .get(&((offsets_ptr + i)?))
-                .ok_or_else(|| MemoryError::UnknownMemoryCell(Box::new(addr)))?
-                .into_owned();
+                .ok_or_else(|| MemoryError::UnknownMemoryCell(Box::new(addr)))?;
             for copy_i in 0..n_copies {
                 memory.insert_as_accessed((offsets_ptr + (3 * (index + copy_i) + i))?, &offset)?;
             }
