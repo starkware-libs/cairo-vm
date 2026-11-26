@@ -693,6 +693,19 @@ impl Memory {
         Ok(values)
     }
 
+    /// Gets the `N` u32 values from addr to addr + N as an array, avoiding the heap allocation
+    /// of `get_u32_range`.
+    pub fn get_u32_array<const N: usize>(
+        &self,
+        addr: Relocatable,
+    ) -> Result<[u32; N], MemoryError> {
+        let mut values = [0; N];
+        for (i, value) in values.iter_mut().enumerate() {
+            *value = self.get_u32((addr + i)?)?;
+        }
+        Ok(values)
+    }
+
     fn get_cell(&self, addr: Relocatable) -> Option<&MemoryCell> {
         let (i, j) = from_relocatable_to_indexes(addr);
         let data = if addr.segment_index < 0 {
